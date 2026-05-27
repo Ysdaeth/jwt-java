@@ -12,10 +12,15 @@ public class Jwt {
 
     private String token;
 
-    public Jwt(Header header, Payload payload, Signature signature){
+    Jwt(Header header, Payload payload, Signature signature){
         this.header = header;
         this.payload = payload;
         this.signature = signature;
+    }
+
+    public Jwt(Header header, Payload payload){
+        this.header = header;
+        this.payload = payload;
     }
 
     public Jwt(String jwt){
