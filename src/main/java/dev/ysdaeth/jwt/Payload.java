@@ -5,7 +5,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Payload {
+public class Payload extends Base64Holder{
+    private String base64 = null;
     private Map<String, String> claims = new HashMap<>();
 
     public Payload setIssuer(String issuer){
@@ -107,16 +108,16 @@ public class Payload {
         return null;
     }
 
+    public Payload setClaims(Map<String,String> claims){
+        this.claims = claims;
+        return this;
+    }
+
     /**
      * returns mutable map
      * @return map claims
      */
     Map<String,String> getClaims(){
         return claims;
-    }
-
-    public Payload setClaims(Map<String,String> claims){
-        this.claims = claims;
-        return this;
     }
 }

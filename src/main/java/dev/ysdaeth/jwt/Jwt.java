@@ -5,11 +5,17 @@ import java.security.Key;
 public class Jwt {
     private static final JwtSerializer serializer = new JwtSerializer();
 
-    private Header header;
-    private Payload payload;
+    private final Header header;
+    private final Payload payload;
     private Signature signature;
 
-
+    /**
+     * Constructor used by this package to create, check and manage this instance.
+     * Public access is forbidden to avoid creating unsafe tokens
+     * @param header header
+     * @param payload payload
+     * @param signature signature
+     */
     Jwt(Header header, Payload payload, Signature signature){
         this.header = header;
         this.payload = payload;
@@ -27,23 +33,6 @@ public class Jwt {
         this.payload = payload;
     }
 
-    public static Jwt verify(String jwt, Key verificationKey) throws MalformedJwtException {
-        Jwt parsedJwt = parseJwt(jwt);
-        JwtType jwtType;
-
-        try{
-            jwtType = JwtType.valueOf( parsedJwt.header.getType() );
-        }catch (IllegalArgumentException e){
-            throw new MalformedJwtException("Malformed Jwt token." + e.getMessage(), e);
-        }
-
-        JwtSigner signer = JwtSignerFactory.getInstance(jwtType);
-        boolean isVerified = signer.verify(parsedJwt, verificationKey);
-        if(!isVerified) throw new SecurityException("Jwt signature does not match content.");
-
-        return new Jwt(parsedJwt.header, parsedJwt.payload, parsedJwt.signature);
-    }
-
     /**
      * Creates {@link Signature} for that jwt token as a field value, then
      * returns string which is full compact JSON Web Token.
@@ -54,8 +43,12 @@ public class Jwt {
     public String sign(Key signKey, JwtType jwtType){
         if(this.signature != null) throw new MalformedJwtException("Jwt is already signed");
         JwtSigner signer = JwtSignerFactory.getInstance(jwtType);
-        this.signature = signer.createSignature(header, payload, signKey);
-        return serializer.serialize(this);
+
+        header.setBase64( serializer.serialize(header) );
+        payload.setBase64( serializer.serialize(payload) );
+
+        this.signature = signer.sign(header, payload, signKey);
+        return serializer.concatSerialized(header, payload, signature);
     }
 
     public Header getHeader() {
@@ -95,5 +88,23 @@ public class Jwt {
             throw new MalformedJwtException("Malformed Jwt token." + e.getMessage(), e);
         }
     }
+
+    public static Jwt verify(String jwt, Key verificationKey) throws MalformedJwtException {
+        Jwt parsedJwt = parseJwt(jwt);
+        JwtType jwtType;
+
+        try{
+            jwtType = JwtType.valueOf( parsedJwt.header.getType() );
+        }catch (IllegalArgumentException e){
+            throw new MalformedJwtException("Malformed Jwt token." + e.getMessage(), e);
+        }
+
+        JwtSigner signer = JwtSignerFactory.getInstance(jwtType);
+        boolean isVerified = signer.verify(parsedJwt, verificationKey);
+        if(!isVerified) throw new SecurityException("Jwt signature does not match content.");
+
+        return new Jwt(parsedJwt.header, parsedJwt.payload, parsedJwt.signature);
+    }
+
 
 }

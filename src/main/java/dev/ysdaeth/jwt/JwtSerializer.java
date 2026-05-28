@@ -21,19 +21,22 @@ class JwtSerializer {
                 .build();
     }
 
-    String serialize(Jwt jwt){
-        Header header = jwt.getHeader();
-        String serializedHeader = mapper.writeValueAsString(header.getClaims());
-        String base64Header = toBase64(serializedHeader);
+    String concatSerialized(Header header, Payload payload, Signature signature){
+        try{
+            return header.getBase64() + "." + payload.getBase64() + "." + signature.getBase64();
+        }catch (Exception e){
+            throw new RuntimeException("Failed to serialize Jwt." + e.getMessage(), e);
+        }
+    }
 
-        Payload payload = jwt.getPayload();
-        String serializedPayload = mapper.writeValueAsString(payload.getClaims());
-        String base64Payload = toBase64(serializedPayload);
+    String serialize(Header header){
+        String serializedHeader = mapper.writeValueAsString( header.getClaims() );
+        return toBase64( serializedHeader );
+    }
 
-        String signature = toBase64(jwt.getSignature().getBytes());
-
-        return base64Header + '.' + base64Payload + '.' + signature;
-
+    String serialize(Payload payload){
+        String serializedPayload = mapper.writeValueAsString( payload.getClaims() );
+        return toBase64( serializedPayload );
     }
 
     Jwt deserialize(String serialized) throws JwtStateException {
@@ -47,7 +50,7 @@ class JwtSerializer {
 
         String serializedPayload = fromBase64(parts[1]);
         Map<String,String> deserializedPayload = mapper.readValue(serializedPayload, claimsTypeRef);
-        Payload payload = new Payload().setClaims(deserializedHeader);
+        Payload payload = new Payload().setClaims(deserializedPayload);
 
         Signature signature = new Signature( parts[2] );
 
@@ -55,14 +58,13 @@ class JwtSerializer {
 
     }
 
-    private String toBase64(String claims){
-        byte[] bytes = claims.getBytes(StandardCharsets.UTF_8);
+    private String toBase64(String text){
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
         return toBase64(bytes);
     }
 
     private String toBase64(byte[] bytes){
-        return Base64.getEncoder().encodeToString(bytes);
-    }
+        return Base64.getEncoder().encodeToString(bytes); }
 
     private String fromBase64(String base64){
         byte[] bytes = Base64.getDecoder().decode(base64);

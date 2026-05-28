@@ -4,7 +4,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Header {
+public class Header extends Base64Holder {
+
     private Map<String, String> claims = new HashMap<>();
 
     public Header setKeyId(String keyId){
