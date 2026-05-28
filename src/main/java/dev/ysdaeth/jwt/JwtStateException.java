@@ -1,7 +1,7 @@
 package dev.ysdaeth.jwt;
 
-public class MalformedTokenException extends Exception {
-    public MalformedTokenException(String message) {
+public class JwtStateException extends Exception {
+    public JwtStateException(String message) {
         super(message);
     }
 }

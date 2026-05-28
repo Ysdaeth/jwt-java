@@ -5,12 +5,10 @@ import java.security.Key;
 public class Jwt {
     private static final JwtSerializer serializer = new JwtSerializer();
 
-    private boolean isVerified = false;
     private Header header;
     private Payload payload;
     private Signature signature;
 
-    private String token;
 
     Jwt(Header header, Payload payload, Signature signature){
         this.header = header;
@@ -18,47 +16,84 @@ public class Jwt {
         this.signature = signature;
     }
 
+    /**
+     * Creates object of the JSON Web Token without signature. After constructing,
+     * a method {@link this#sign(Key, JwtType)} creates Signature field and returns compact JWT.
+     * @param header JWT Header
+     * @param payload JWT Payload
+     */
     public Jwt(Header header, Payload payload){
         this.header = header;
         this.payload = payload;
     }
 
-    public Jwt(String jwt){
-        Jwt parsedJwt;
+    public static Jwt verify(String jwt, Key verificationKey) throws MalformedJwtException {
+        Jwt parsedJwt = parseJwt(jwt);
+        JwtType jwtType;
+
         try{
-            parsedJwt = serializer.deserialize(jwt);
-        }catch (MalformedTokenException e){
-            throw new JwtStateException("Malformed Jwt token." + e.getMessage(), e);
+            jwtType = JwtType.valueOf( parsedJwt.header.getType() );
+        }catch (IllegalArgumentException e){
+            throw new MalformedJwtException("Malformed Jwt token." + e.getMessage(), e);
         }
 
-        this(parsedJwt.header, parsedJwt.payload, parsedJwt.signature);
+        JwtSigner signer = JwtSignerFactory.getInstance(jwtType);
+        boolean isVerified = signer.verify(parsedJwt, verificationKey);
+        if(!isVerified) throw new SecurityException("Jwt signature does not match content.");
+
+        return new Jwt(parsedJwt.header, parsedJwt.payload, parsedJwt.signature);
     }
 
+    /**
+     * Creates {@link Signature} for that jwt token as a field value, then
+     * returns string which is full compact JSON Web Token.
+     * @param signKey key used to sign the token
+     * @param jwtType type of jwt like. RS256, HS256, etc.
+     * @return JSON Web Token as a string base64 encoded with separators '.'
+     */
     public String sign(Key signKey, JwtType jwtType){
-        if(this.signature != null) throw new JwtStateException("Jwt is already signed");
+        if(this.signature != null) throw new MalformedJwtException("Jwt is already signed");
         JwtSigner signer = JwtSignerFactory.getInstance(jwtType);
         this.signature = signer.createSignature(header, payload, signKey);
         return serializer.serialize(this);
-    }
-
-    boolean verify(Key verificationKey){
-        JwtType type = JwtType.valueOf(header.getType());
-        JwtSigner signer = JwtSignerFactory.getInstance(type);
-        isVerified = signer.verify(header, payload, signature, verificationKey);
-        return isVerified;
     }
 
     public Header getHeader() {
         return header;
     }
 
-    public Payload getPayload() {
-        if(isVerified) return payload;
-        throw new JwtStateException("Jwt is not verified, or method 'verify()' was not called");
+    /**
+     * Parses Jwt and returns {@link Header}, which is unsafe object.
+     * @param jwt compact jwt token.
+     * @return Jwt header
+     */
+    public static Header parseUnsafeHeader(String jwt){
+        Jwt parsedJwt = parseJwt(jwt);
+        return parsedJwt.header;
     }
 
+    /**
+     * Returns verified Jwt {@link Payload}
+     * @return jwt payload object
+     */
+    public Payload getPayload() {
+        return payload;
+    }
+
+    /**
+     * Returns {@link Signature} of the signed Jwt token.
+     * @return Jwt signature object
+     */
     public Signature getSignature() {
         return signature;
+    }
+
+    private static Jwt parseJwt(String jwt) throws MalformedJwtException {
+        try{
+            return serializer.deserialize(jwt);
+        }catch (JwtStateException e){
+            throw new MalformedJwtException("Malformed Jwt token." + e.getMessage(), e);
+        }
     }
 
 }

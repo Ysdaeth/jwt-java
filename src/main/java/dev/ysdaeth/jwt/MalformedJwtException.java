@@ -1,11 +1,11 @@
 package dev.ysdaeth.jwt;
 
-public class JwtStateException extends RuntimeException{
-    public JwtStateException(String message) {
+public class MalformedJwtException extends RuntimeException{
+    public MalformedJwtException(String message) {
         super(message);
     }
 
-    public JwtStateException(String message, Throwable cause) {
+    public MalformedJwtException(String message, Throwable cause) {
         super(message, cause);
     }
 }

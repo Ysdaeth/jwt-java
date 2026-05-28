@@ -36,9 +36,9 @@ class JwtSerializer {
 
     }
 
-    Jwt deserialize(String serialized) throws MalformedTokenException {
+    Jwt deserialize(String serialized) throws JwtStateException {
         String[] parts = serialized.split("//.");
-        if(parts.length != 3) throw new MalformedTokenException(
+        if(parts.length != 3) throw new JwtStateException(
                 "Token must contain three sections, but has: '%d'".formatted(parts.length));
 
         String serializedHeader = fromBase64(parts[0]);
