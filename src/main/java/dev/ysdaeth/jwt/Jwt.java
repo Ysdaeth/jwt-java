@@ -9,7 +9,7 @@ public class Jwt {
     private Signature signature;
 
     /**
-     * Constructor used by this package to create, check and manage this instance.
+     * Constructor used by this package ONLY classes to create unsafe instance, or other reason.
      * Public access is forbidden to avoid creating unsafe tokens
      * @param header header
      * @param payload payload
@@ -33,8 +33,8 @@ public class Jwt {
     }
 
     /**
-     * Creates {@link Signature} for that jwt token as a field value, then
-     * returns string which is full compact JSON Web Token.
+     * Creates {@link Signature} for that instance as a field value, then
+     * returns string which is full compact (serialized) JSON Web Token.
      * @param signKey key used to sign the token
      * @param jwtAlgorithm type of jwt like. RS256, HS256, etc.
      * @return JSON Web Token as a string base64 encoded with separators '.'
@@ -49,26 +49,38 @@ public class Jwt {
         return signer.sign(this, signKey);
     }
 
+    /**
+     * Returns mutable header instance
+     * @return Jwt header instance
+     */
     public Header getHeader() {
         return header;
     }
 
     /**
-     * Returns verified Jwt {@link Payload}
-     * @return jwt payload object
+     * Returns mutable Jwt payload instance
+     * and every set method will throw {@link JwtStateException}
+     * @return jwt payload instance
      */
     public Payload getPayload() {
         return payload;
     }
 
     /**
-     * Returns {@link Signature} of the signed Jwt token.
+     * Returns immutable {@link Signature} of the signed Jwt token.
      * @return Jwt signature object
      */
     public Signature getSignature() {
         return signature;
     }
+
+    /**
+     * Package private access only to avoid creating unsafe instance.
+     * Signature can be assigned only once for safety reasons.
+     * @param signature signature for that instance.
+     */
     void setSignature(Signature signature){
+        if(this.signature != null) throw new RuntimeException("JWT Signature must not be re-assigned");
         this.signature = signature;
     }
 
@@ -97,7 +109,5 @@ public class Jwt {
         }
         return signer.verify(serializedJwt, key);
     }
-
-
 
 }

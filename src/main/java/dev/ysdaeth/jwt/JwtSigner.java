@@ -25,7 +25,12 @@ abstract class JwtSigner {
         Signature signature = createSignature(headerBytes, payloadBytes, key);
         jwt.setSignature(signature);
 
-        return serializer.serialize(headerBytes, payloadBytes, signature.getBytes());
+        String serialized = serializer.serialize(headerBytes, payloadBytes, signature.getBytes());
+
+        payload.getClaims().lock();
+        header.getClaims().lock();
+
+        return serialized;
     }
 
     protected abstract Signature createSignature(byte[] header, byte[] payload, Key key);
@@ -42,6 +47,8 @@ abstract class JwtSigner {
         Header header = serializer.deserializeHeaderFromBytes(headerBytes);
         Payload payload = serializer.deserializePayloadFromBytes(payloadBytes);
         Signature signature = new Signature(signatureBytes);
+
+        return new Jwt(header, payload, signature);
     }
 
     static Header getUnsafeHeader(String serializedJwt) throws MalformedJwtException {

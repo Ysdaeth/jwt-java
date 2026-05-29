@@ -2,17 +2,22 @@ package dev.ysdaeth.jwt;
 
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 
 public class Payload {
-    private Map<String, String> claims = new HashMap<>();
 
-    public Payload(Map<String, String> claims){
-        this.claims.putAll(claims);
+    private final Claims claims;
+
+    public Payload(Map<String, Object> claims){
+        this.claims = new Claims(claims);
     }
-    public Payload(){
 
+    public Payload(){
+        claims = new Claims();
+    }
+
+    Payload(Claims claims){
+        this.claims = claims;
     }
 
     public Payload setIssuer(String issuer){
@@ -21,7 +26,8 @@ public class Payload {
     }
 
     public String getIssuer(){
-        return claims.get("iss"); }
+        return (String) claims.get("iss");
+    }
 
     public Payload setSubject(String subject){
         claims.put("sub", subject);
@@ -29,7 +35,8 @@ public class Payload {
     }
 
     public String getSubject(){
-        return claims.get("sub"); }
+        return (String) claims.get("sub");
+    }
 
     public Payload setAudience(String audience){
         claims.put("aud", audience);
@@ -37,7 +44,8 @@ public class Payload {
     }
 
     public String getAudience(){
-        return claims.get("aud"); }
+        return (String) claims.get("aud");
+    }
 
     public Payload setJwtId(String id){
         claims.put("jti", id);
@@ -45,57 +53,90 @@ public class Payload {
     }
 
     public String getJwtId(){
-        return claims.get("jti");}
+        return (String) claims.get("jti");
+    }
 
     public Payload setIssuedAt(Instant issuedAt){
-        String time = issuedAt.toString();
-        claims.put("iat", time);
+        claims.put("iat", issuedAt.getEpochSecond());
         return this;
     }
 
     public Instant getIssuedAt(){
-        String time = claims.get("iat");
-        if(time != null) return Instant.parse(time);
+        Object value = claims.get("iat");
+
+        if(value instanceof Number number){
+            return Instant.ofEpochSecond(number.longValue());
+        }
+
         return null;
     }
 
     public Payload setExpireAt(Instant expiresAt){
-        String time = expiresAt.toString();
-        claims.put("exp", time);
+        claims.put("exp", expiresAt.getEpochSecond());
         return this;
     }
 
     public Instant getExpireAt(){
-        String time = claims.get("exp");
-        if(time != null) return Instant.parse(time);
+        Object value = claims.get("exp");
+
+        if(value instanceof Number number){
+            return Instant.ofEpochSecond(number.longValue());
+        }
+
         return null;
     }
 
     public Payload setNotBefore(Instant notBefore){
-        String time = notBefore.toString();
-        claims.put("nbf", time);
+        claims.put("nbf", notBefore.getEpochSecond());
         return this;
     }
 
     public Instant getNotBefore(){
-        String time = claims.get("nbf");
-        if(time != null) return Instant.parse(time);
+        Object value = claims.get("nbf");
+
+        if(value instanceof Number number){
+            return Instant.ofEpochSecond(number.longValue());
+        }
+
         return null;
     }
 
-    public Payload add(String key, String value){
-        claims.put(key,value);
+    public Payload add(String key, Object value){
+        claims.put(key, value);
         return this;
     }
 
-    public String get(String key){
-        return claims.get(key); }
+    public Object get(String key){
+        return claims.get(key);
+    }
+
+    public String getString(String key){
+        Object value = claims.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    public Long getLong(String key){
+        Object value = claims.get(key);
+
+        if(value instanceof Number number){
+            return number.longValue();
+        }
+
+        return null;
+    }
+
+    public Boolean getBoolean(String key){
+        Object value = claims.get(key);
+
+        if(value instanceof Boolean bool){
+            return bool;
+        }
+
+        return null;
+    }
 
     /**
-     * Encodes bytes to base64 and set it as a claim with specified name
-     * @param key claim name
-     * @param value claim value, base64 encoded bytes
-     * @return this instance
+     * Encodes bytes to base64 and stores them as string
      */
     public Payload addBytes(String key, byte[] value){
         String base64 = Base64.getEncoder().encodeToString(value);
@@ -104,26 +145,28 @@ public class Payload {
     }
 
     /**
-     * Looks for specified field passed as an argument, and parses value from base64 to bytes
-     * @param key claim name
-     * @return byte array
+     * Decodes base64 string to bytes
      */
     public byte[] getBytes(String key){
-        String base64 = claims.get(key);
-        if(base64 != null) return Base64.getDecoder().decode(base64);
+        Object value = claims.get(key);
+
+        if(value instanceof String base64){
+            return Base64.getDecoder().decode(base64);
+        }
+
         return null;
     }
 
-    public Payload setClaims(Map<String,String> claims){
-        this.claims = claims;
+    public Payload setClaims(Map<String, Object> claims){
+        this.claims.clear();
+        this.claims.putAll(claims);
         return this;
     }
 
     /**
-     * returns mutable map
-     * @return map claims
+     * Returns mutable claims map
      */
-    Map<String,String> getClaims(){
+    Claims getClaims(){
         return claims;
     }
 }

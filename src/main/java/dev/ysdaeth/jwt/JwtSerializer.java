@@ -10,11 +10,10 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-// TODO make it static and
 class JwtSerializer {
     private final ObjectMapper mapper;
-    private final TypeReference<HashMap<String, String>> claimsTypeRef
-            = new TypeReference<HashMap<String, String>>() {};
+    private final TypeReference<HashMap<String, Object>> claimsTypeRef
+            = new TypeReference<HashMap<String, Object>>() {};
 
     JwtSerializer(){
         mapper = JsonMapper.builder()
@@ -37,7 +36,7 @@ class JwtSerializer {
 
     Header extractHeader(String serializedJwt) throws MalformedJwtException {
         int indexOfDot = serializedJwt.indexOf('.');
-        Map<String,String> claims = extractClaims( serializedJwt, 0, indexOfDot);
+        Claims claims = extractClaims( serializedJwt, 0, indexOfDot);
         return new Header(claims);
     }
 
@@ -53,14 +52,14 @@ class JwtSerializer {
 
     Header deserializeHeaderFromBytes(byte[] header){
         String headerSerialized = new String(header, StandardCharsets.UTF_8);
-        Map<String,String> claims = mapper.convertValue(headerSerialized, claimsTypeRef);
+        Map<String,Object> claims = mapper.convertValue(headerSerialized, claimsTypeRef);
         return new Header(claims);
     }
 
     Payload extractPayload(String serializedJwt) throws MalformedJwtException {
         int dotBefore = serializedJwt.indexOf('.');
         int dotAfter = serializedJwt.lastIndexOf('.');
-        Map<String,String> claims = extractClaims(serializedJwt, dotBefore + 1, dotAfter);
+        Claims claims = extractClaims(serializedJwt, dotBefore + 1, dotAfter);
         return new Payload(claims);
     }
 
@@ -77,7 +76,7 @@ class JwtSerializer {
 
     Payload deserializePayloadFromBytes(byte[] payload){
         String headerSerialized = new String(payload, StandardCharsets.UTF_8);
-        Map<String,String> claims = mapper.convertValue(headerSerialized, claimsTypeRef);
+        Map<String,Object> claims = mapper.convertValue(headerSerialized, claimsTypeRef);
         return new Payload(claims);
     }
 
@@ -113,16 +112,16 @@ class JwtSerializer {
      * @return map of claims
      * @throws MalformedJwtException when extracting claims fail.
      */
-    private Map<String,String> extractClaims(String serializedJwt, int start, int end)
+    private Claims extractClaims(String serializedJwt, int start, int end)
             throws MalformedJwtException {
-        Map<String,String> claims;
+        Map<String,Object> claims;
         try{
             String serializedClaims = serializedJwt.substring(start, end);
             claims = mapper.convertValue(serializedClaims, claimsTypeRef);
         }catch (Exception e){
             throw new MalformedJwtException("Json Web Token claims extraction failed."+ e.getMessage(), e);
         }
-        return claims;
+        return new Claims(claims);
     }
 
     private byte[] extractClaimsBytes(String serializedJwt, int start, int end)
