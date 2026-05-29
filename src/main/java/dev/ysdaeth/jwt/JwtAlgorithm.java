@@ -1,5 +1,5 @@
 package dev.ysdaeth.jwt;
 
-public enum JwtType {
+public enum JwtAlgorithm {
     RS256, HS256;
 }

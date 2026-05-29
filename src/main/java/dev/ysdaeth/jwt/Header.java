@@ -4,9 +4,15 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Header extends Base64Holder {
+public class Header extends BytesHolder {
 
     private Map<String, String> claims = new HashMap<>();
+
+    public Header(Map<String, String> claims){
+        this.claims.putAll(claims);
+    }
+
+    public Header(){}
 
     public Header setKeyId(String keyId){
         claims.put("kid",keyId);
@@ -18,8 +24,8 @@ public class Header extends Base64Holder {
      */
     public String getKeyId(){ return claims.get("kid"); }
 
-    public Header setType(JwtType jwtType){
-        claims.put("typ", jwtType.name());
+    public Header setType(String type){
+        claims.put("typ", type);
         return this;
     }
 
@@ -36,7 +42,9 @@ public class Header extends Base64Holder {
     /**
      * @return jwt type or null when does not exist
      */
-    public String getAlgorithm(){ return claims.get("alg"); }
+    public String getAlgorithm(){
+        return claims.get("alg");
+    }
 
     public Header setPublicKey(byte[] verificationKey){
         String keyBase64 = Base64.getEncoder().encodeToString(verificationKey);

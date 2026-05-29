@@ -10,6 +10,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+// TODO make it static and
 class JwtSerializer {
     private final ObjectMapper mapper;
     private final TypeReference<HashMap<String, String>> claimsTypeRef
@@ -21,47 +22,121 @@ class JwtSerializer {
                 .build();
     }
 
-    String concatSerialized(Header header, Payload payload, Signature signature){
+    String serialize(byte[] header, byte[] payload, byte[] signature){
         try{
-            return header.getBase64() + "." + payload.getBase64() + "." + signature.getBase64();
+            String headerBase64 = toBase64( header );
+            String payloadBase64 = toBase64( payload );
+            String signatureBase64 = toBase64( signature );
+
+            return headerBase64 + "." + payloadBase64 + "." + signatureBase64;
+
         }catch (Exception e){
             throw new RuntimeException("Failed to serialize Jwt." + e.getMessage(), e);
         }
     }
 
-    String serialize(Header header){
+    Header extractHeader(String serializedJwt) throws MalformedJwtException {
+        int indexOfDot = serializedJwt.indexOf('.');
+        Map<String,String> claims = extractClaims( serializedJwt, 0, indexOfDot);
+        return new Header(claims);
+    }
+
+    byte[] extractHeaderBytes(String serializedJwt) throws MalformedJwtException{
+        int indexOfDot = serializedJwt.indexOf('.');
+        return extractClaimsBytes(serializedJwt,0,indexOfDot);
+    }
+
+    byte[] serializeToBytes(Header header){
         String serializedHeader = mapper.writeValueAsString( header.getClaims() );
-        return toBase64( serializedHeader );
+        return serializedHeader.getBytes(StandardCharsets.UTF_8);
     }
 
-    String serialize(Payload payload){
+    Header deserializeHeaderFromBytes(byte[] header){
+        String headerSerialized = new String(header, StandardCharsets.UTF_8);
+        Map<String,String> claims = mapper.convertValue(headerSerialized, claimsTypeRef);
+        return new Header(claims);
+    }
+
+    Payload extractPayload(String serializedJwt) throws MalformedJwtException {
+        int dotBefore = serializedJwt.indexOf('.');
+        int dotAfter = serializedJwt.lastIndexOf('.');
+        Map<String,String> claims = extractClaims(serializedJwt, dotBefore + 1, dotAfter);
+        return new Payload(claims);
+    }
+
+    byte[] extractPayloadBytes(String serializedJwt) throws MalformedJwtException{
+        int dotBefore = serializedJwt.indexOf('.');
+        int dotAfter = serializedJwt.lastIndexOf('.');
+        return extractClaimsBytes(serializedJwt, dotBefore, dotAfter);
+    }
+
+    byte[] serializeToBytes(Payload payload){
         String serializedPayload = mapper.writeValueAsString( payload.getClaims() );
-        return toBase64( serializedPayload );
+        return serializedPayload.getBytes(StandardCharsets.UTF_8);
     }
 
-    Jwt deserialize(String serialized) throws JwtStateException {
-        String[] parts = serialized.split("//.");
-        if(parts.length != 3) throw new JwtStateException(
-                "Token must contain three sections, but has: '%d'".formatted(parts.length));
-
-        String serializedHeader = fromBase64(parts[0]);
-        Map<String,String> deserializedHeader = mapper.readValue(serializedHeader, claimsTypeRef);
-        Header header = new Header().setClaims(deserializedHeader);
-
-        String serializedPayload = fromBase64(parts[1]);
-        Map<String,String> deserializedPayload = mapper.readValue(serializedPayload, claimsTypeRef);
-        Payload payload = new Payload().setClaims(deserializedPayload);
-
-        Signature signature = new Signature( parts[2] );
-
-        return new Jwt(header, payload, signature);
-
+    Payload deserializePayloadFromBytes(byte[] payload){
+        String headerSerialized = new String(payload, StandardCharsets.UTF_8);
+        Map<String,String> claims = mapper.convertValue(headerSerialized, claimsTypeRef);
+        return new Payload(claims);
     }
 
-    private String toBase64(String text){
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-        return toBase64(bytes);
+    Signature extractSignature(String serializedJwt) throws MalformedJwtException {
+        int dotBefore = serializedJwt.lastIndexOf('.');
+        Signature signature;
+        try{
+            String base64 = serializedJwt.substring(dotBefore + 1);
+            signature = new Signature(base64);
+        }catch (Exception e){
+            throw new MalformedJwtException("Signature extraction failed. " + e.getMessage(), e);
+        }
+        return signature;
     }
+
+    byte[] extractSignatureBytes(String serializedJwt) throws MalformedJwtException {
+        int dotBefore = serializedJwt.lastIndexOf('.');
+        byte[] signature;
+        try{
+            signature = extractClaimsBytes(serializedJwt, dotBefore +1, serializedJwt.length());
+        }catch (Exception e){
+            throw new MalformedJwtException("Signature extraction failed. " + e.getMessage(), e);
+        }
+        return signature;
+    }
+
+    /**
+     * Extract token claims from serialized JSON Web Token beginning from inclusive start
+     * up to exclusive end.
+     * @param serializedJwt full serialized JWT token
+     * @param start inclusive index of string
+     * @param end exclusive index of string
+     * @return map of claims
+     * @throws MalformedJwtException when extracting claims fail.
+     */
+    private Map<String,String> extractClaims(String serializedJwt, int start, int end)
+            throws MalformedJwtException {
+        Map<String,String> claims;
+        try{
+            String serializedClaims = serializedJwt.substring(start, end);
+            claims = mapper.convertValue(serializedClaims, claimsTypeRef);
+        }catch (Exception e){
+            throw new MalformedJwtException("Json Web Token claims extraction failed."+ e.getMessage(), e);
+        }
+        return claims;
+    }
+
+    private byte[] extractClaimsBytes(String serializedJwt, int start, int end)
+            throws MalformedJwtException {
+        byte[] claims;
+        try{
+            String serializedClaims = serializedJwt.substring(start,end);
+            claims = Base64.getDecoder().decode(serializedClaims);
+        }catch (Exception e){
+            throw new MalformedJwtException("Json Web Token claims extraction failed."+ e.getMessage(), e);
+        }
+        return claims;
+    }
+
 
     private String toBase64(byte[] bytes){
         return Base64.getEncoder().encodeToString(bytes); }

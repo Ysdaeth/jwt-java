@@ -5,9 +5,15 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Payload extends Base64Holder{
-    private String base64 = null;
+public class Payload {
     private Map<String, String> claims = new HashMap<>();
+
+    public Payload(Map<String, String> claims){
+        this.claims.putAll(claims);
+    }
+    public Payload(){
+
+    }
 
     public Payload setIssuer(String issuer){
         claims.put("iss", issuer);

@@ -5,17 +5,23 @@ import java.util.Map;
 
 class JwtSignerFactory {
 
-    private final static Map<JwtType,JwtSigner> signers = new HashMap<>();
+    private final static Map<String,JwtSigner> signers = new HashMap<>();
 
-    static void register(JwtType jwtType, JwtSigner signer){
-        if(signers.get(jwtType) != null) throw new RuntimeException(
-                "Jwt Type '%s' is already registered or taken".formatted(jwtType));
-        signers.put(jwtType, signer);
+    static void register(JwtAlgorithm jwtAlgorithm, JwtSigner signer){
+        String algName = jwtAlgorithm.name();
+        if(signers.get(algName) != null) throw new RuntimeException(
+                "Jwt algorithm '%s' is already registered.".formatted(algName));
+        signers.put(algName, signer);
     }
 
-    static JwtSigner getInstance(JwtType jwtType){
-        JwtSigner signer =  signers.get(jwtType);
-        if(signer == null) throw new RuntimeException("No such JwtSigner: '%s'".formatted(jwtType));
+    /**
+     * Registered signer if exists, otherwise null
+     * @param jwtAlgorithm Jwt algorithm
+     * @return instance or null
+     */
+    static JwtSigner getInstance(String jwtAlgorithm){
+        JwtSigner signer =  signers.get(jwtAlgorithm);
+        if(signer == null) return null;
         return signer;
     }
 }
