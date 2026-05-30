@@ -1,0 +1,53 @@
+package dev.ysdaeth.jwt;
+
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.module.blackbird.BlackbirdModule;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+
+class JwtClaimsSerializer {
+    private final ObjectMapper mapper;
+    private final TypeReference<HashMap<String, Object>> claimsTypeRef
+            = new TypeReference<HashMap<String, Object>>() {};
+
+    JwtClaimsSerializer(){
+        mapper = JsonMapper.builder()
+                .addModule(new BlackbirdModule())
+                .build();
+    }
+
+    String serializeToBase64(Claims claims){
+        Map<String,Object> claimsMap = claims.getMap();
+        String serialized = mapper.writeValueAsString(claimsMap);
+        byte[] serializedBytes = serialized.getBytes(StandardCharsets.UTF_8);
+        return bytesToBase64(serializedBytes);
+    }
+
+
+    Claims deserializeClaimsBase64(String claimsBase64) throws MalformedJwtException {
+        Claims claims;
+        try{
+            byte[] claimsBytes = bytesFromBase64(claimsBase64);
+            String serializedClaims = new String(claimsBytes, StandardCharsets.UTF_8);
+            Map<String, Object> claimsMap = mapper.readValue(serializedClaims, claimsTypeRef);
+            claims = new Claims(claimsMap);
+        }catch (Exception e){
+            throw new MalformedJwtException("Json Web Token claims deserialization failed. "+ e.getMessage(), e);
+        }
+        return claims;
+    }
+
+    String bytesToBase64(byte[] bytes){
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    byte[] bytesFromBase64(String base64){
+        return Base64.getUrlDecoder().decode(base64);
+    }
+
+}

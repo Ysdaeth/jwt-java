@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 
-public class Payload {
+public final class Payload {
 
     private final Claims claims;
 
@@ -20,45 +20,40 @@ public class Payload {
         this.claims = claims;
     }
 
-    public Payload setIssuer(String issuer){
+    public void setIssuer(String issuer){
         claims.put("iss", issuer);
-        return this;
     }
 
     public String getIssuer(){
         return (String) claims.get("iss");
     }
 
-    public Payload setSubject(String subject){
+    public void setSubject(String subject){
         claims.put("sub", subject);
-        return this;
     }
 
     public String getSubject(){
         return (String) claims.get("sub");
     }
 
-    public Payload setAudience(String audience){
+    public void setAudience(String audience){
         claims.put("aud", audience);
-        return this;
     }
 
     public String getAudience(){
         return (String) claims.get("aud");
     }
 
-    public Payload setJwtId(String id){
+    public void setJwtId(String id){
         claims.put("jti", id);
-        return this;
     }
 
     public String getJwtId(){
         return (String) claims.get("jti");
     }
 
-    public Payload setIssuedAt(Instant issuedAt){
+    public void setIssuedAt(Instant issuedAt){
         claims.put("iat", issuedAt.getEpochSecond());
-        return this;
     }
 
     public Instant getIssuedAt(){
@@ -71,9 +66,8 @@ public class Payload {
         return null;
     }
 
-    public Payload setExpireAt(Instant expiresAt){
+    public void setExpiresAt(Instant expiresAt){
         claims.put("exp", expiresAt.getEpochSecond());
-        return this;
     }
 
     public Instant getExpireAt(){
@@ -86,9 +80,8 @@ public class Payload {
         return null;
     }
 
-    public Payload setNotBefore(Instant notBefore){
+    public void setNotBefore(Instant notBefore){
         claims.put("nbf", notBefore.getEpochSecond());
-        return this;
     }
 
     public Instant getNotBefore(){
@@ -101,9 +94,8 @@ public class Payload {
         return null;
     }
 
-    public Payload add(String key, Object value){
+    public void add(String key, Object value){
         claims.put(key, value);
-        return this;
     }
 
     public Object get(String key){
@@ -138,10 +130,11 @@ public class Payload {
     /**
      * Encodes bytes to base64 and stores them as string
      */
-    public Payload addBytes(String key, byte[] value){
-        String base64 = Base64.getEncoder().encodeToString(value);
+    public void addBytes(String key, byte[] value){
+        String base64 = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(value);
         claims.put(key, base64);
-        return this;
     }
 
     /**
@@ -151,22 +144,34 @@ public class Payload {
         Object value = claims.get(key);
 
         if(value instanceof String base64){
-            return Base64.getDecoder().decode(base64);
+            return Base64.getUrlDecoder().decode(base64);
         }
 
         return null;
     }
 
-    public Payload setClaims(Map<String, Object> claims){
+    public void setClaims(Map<String, Object> claims){
         this.claims.clear();
         this.claims.putAll(claims);
-        return this;
+    }
+
+    Claims getClaims() {
+        return claims;
     }
 
     /**
-     * Returns mutable claims map
+     * Locks claims to be immutable
      */
-    Claims getClaims(){
-        return claims;
+    void lock() {
+        claims.lock();
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof Payload other){
+            return claims.equals(other.claims);
+        }
+        return false;
+    }
+
 }

@@ -3,7 +3,7 @@ package dev.ysdaeth.jwt;
 import java.util.Base64;
 import java.util.Map;
 
-public class Header {
+public final class Header {
 
     private final Claims claims;
 
@@ -33,9 +33,8 @@ public class Header {
         return null;
     }
 
-    public Header setType(String type){
+    public void setType(String type){
         claims.put("typ", type);
-        return this;
     }
 
     /**
@@ -47,9 +46,8 @@ public class Header {
         return null;
     }
 
-    public Header setAlgorithm(String alg){
+    public void setAlgorithm(String alg){
         claims.put("alg", alg);
-        return this;
     }
 
     /**
@@ -61,10 +59,11 @@ public class Header {
         return null;
     }
 
-    public Header setPublicKey(byte[] verificationKey){
-        String keyBase64 = Base64.getEncoder().encodeToString(verificationKey);
+    public void setPublicKey(byte[] verificationKey){
+        String keyBase64 = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(verificationKey);
         claims.put("jwk", keyBase64);
-        return this;
     }
 
     /**
@@ -73,14 +72,13 @@ public class Header {
     public byte[] getPublicKey(){
         Object value = claims.get("jwk");
         if(value instanceof String base64){
-            return Base64.getDecoder().decode(base64);
+            return Base64.getUrlDecoder().decode(base64);
         }
         return null;
     }
 
-    public Header add(String key, String value){
+    public void add(String key, Object value){
         claims.put(key,value);
-        return this;
     }
 
     /**
@@ -91,11 +89,22 @@ public class Header {
         return claims.get(key);
     }
 
-    /**
-     * Returns mutable map
-     * @return map with claims
-     */
-    Claims getClaims(){
+    Claims getClaims() {
         return claims;
+    }
+
+    /**
+     * Locks claims to be immutable
+     */
+    void lock(){
+        claims.lock();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof Header other){
+            return claims.equals(other.claims);
+        }
+        return false;
     }
 }

@@ -42,11 +42,13 @@ public class Jwt {
     public String sign(Key signKey, JwtAlgorithm jwtAlgorithm) throws JwtStateException{
         if(this.signature != null) throw new JwtStateException("Jwt is already signed");
 
-        JwtSigner signer = JwtSignerFactory.getInstance( jwtAlgorithm.name() );
+        JwtSigner signer = JwtSignerFactory.getInstance( jwtAlgorithm );
         if(signer == null) throw new RuntimeException(
                 "There is no such registered jwt algorithm '%s'".formatted(jwtAlgorithm.name()));
 
-        return signer.sign(this, signKey);
+        String jwt = signer.sign(this, signKey);
+        lock();
+        return jwt;
     }
 
     /**
@@ -84,30 +86,58 @@ public class Jwt {
         this.signature = signature;
     }
 
-    public static Jwt parse(String serializedJwt, Key verificationKey)
+    /**
+     * Lock the claims to make them immutable
+     */
+    private void lock(){
+        payload.lock();
+        header.lock();
+    }
+
+    public static Jwt parse(String jwt, Key verificationKey)
             throws MalformedJwtException, SecurityException {
 
-        Header header = JwtSigner.getUnsafeHeader(serializedJwt);
-        String algorithm = header.getAlgorithm();
-        return parse(serializedJwt, algorithm, verificationKey);
+        Header header = JwtSigner.getUnsafeHeader(jwt);
+        JwtAlgorithm algorithm = extractAlgorithm(header);
+        return parse(jwt, algorithm, verificationKey);
     }
 
     public static Jwt parse(String serializedJwt, KeyLocator verificationKeyLocator)
             throws MalformedJwtException, SecurityException {
         Header header = JwtSigner.getUnsafeHeader(serializedJwt);
         Key key = verificationKeyLocator.findKey( header.getKeyId() );
-        String algorithm = header.getAlgorithm();
+        JwtAlgorithm algorithm = extractAlgorithm(header);
         return parse(serializedJwt, algorithm, key);
     }
 
-    private static Jwt parse(String serializedJwt, String jwtAlgorithm, Key key)
+    private static Jwt parse(String jwt, JwtAlgorithm jwtAlgorithm, Key key)
             throws MalformedJwtException, SecurityException {
         JwtSigner signer = JwtSignerFactory.getInstance(jwtAlgorithm);
         if(signer == null){
             throw new RuntimeException(
                     "Unsupported algorithm '%s'".formatted(jwtAlgorithm));
         }
-        return signer.verify(serializedJwt, key);
+        Jwt jwtDeserialized = signer.verify(jwt, key);
+        jwtDeserialized.lock();
+        return jwtDeserialized;
     }
 
+    private static JwtAlgorithm extractAlgorithm(Header header) throws MalformedJwtException {
+        String algorithmName = header.getAlgorithm();
+        try{
+            return JwtAlgorithm.valueOf(algorithmName);
+        }catch (Exception e){
+            throw new MalformedJwtException("Unknown JWT algorithm type '%s' ".formatted(algorithmName));
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof Jwt other){
+            return header.equals(other.header)
+                    && payload.equals(other.payload) &&
+                    signature.equals(other.signature);
+        }
+        return false;
+    }
 }

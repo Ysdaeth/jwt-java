@@ -1,5 +1,6 @@
 package dev.ysdaeth.jwt;
 
+import java.util.Arrays;
 import java.util.Base64;
 
 public class Signature {
@@ -9,13 +10,19 @@ public class Signature {
         this.signature = signature;
     }
 
-    public Signature(String signatureBase64){
-        this(
-                Base64.getDecoder().decode(signatureBase64)
-        );
+    public Signature(String signature){
+        this.signature = Base64.getUrlDecoder().decode(signature);
     }
 
     byte[] getBytes(){
         return signature.clone();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof Signature other){
+            return Arrays.equals(signature, other.signature);
+        }
+        return false;
     }
 }

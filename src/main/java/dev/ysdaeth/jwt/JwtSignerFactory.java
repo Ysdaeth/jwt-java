@@ -5,13 +5,15 @@ import java.util.Map;
 
 class JwtSignerFactory {
 
-    private final static Map<String,JwtSigner> signers = new HashMap<>();
+    private final static Map<JwtAlgorithm,JwtSigner> signers = new HashMap<>();
+    static{
+        signers.put(JwtAlgorithm.HS256, new JwtSignerHS256(JwtAlgorithm.HS256));
+    }
 
     static void register(JwtAlgorithm jwtAlgorithm, JwtSigner signer){
-        String algName = jwtAlgorithm.name();
-        if(signers.get(algName) != null) throw new RuntimeException(
-                "Jwt algorithm '%s' is already registered.".formatted(algName));
-        signers.put(algName, signer);
+        if(signers.get(jwtAlgorithm) != null) throw new RuntimeException(
+                "Jwt algorithm '%s' is already registered.".formatted(jwtAlgorithm));
+        signers.put(jwtAlgorithm, signer);
     }
 
     /**
@@ -19,9 +21,7 @@ class JwtSignerFactory {
      * @param jwtAlgorithm Jwt algorithm
      * @return instance or null
      */
-    static JwtSigner getInstance(String jwtAlgorithm){
-        JwtSigner signer =  signers.get(jwtAlgorithm);
-        if(signer == null) return null;
-        return signer;
+    static JwtSigner getInstance(JwtAlgorithm jwtAlgorithm){
+        return signers.get(jwtAlgorithm);
     }
 }
