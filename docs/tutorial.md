@@ -25,7 +25,7 @@ payload.add("iLikeCats", true);
 Jwt jwt = new Jwt(header, payload);
 ```
 ### Create signed token
-Once sign is created, it cannot be created once again from the same instance. 
+Once signature is created, it cannot be created once again from the same instance. 
 Furthermore, changing header or payload claims will throw JwtStateException.
 
 ```java
