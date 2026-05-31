@@ -1,9 +1,7 @@
 package dev.ysdaeth.jwt;
 
 import javax.crypto.Mac;
-import java.nio.ByteBuffer;
 import java.security.Key;
-import java.util.Arrays;
 
 public class JwtSignerHS256 extends JwtSigner {
 

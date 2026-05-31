@@ -15,13 +15,47 @@ class JwtTest {
         expectedJwt = JwtTestUtils.createExpectedUnsignedJwt();
     }
 
-
     @Test
     void serialize_shouldSerialize() throws Exception {
         Jwt jwt = JwtTestUtils.createExpectedUnsignedJwt();
         String serialized = jwt.sign(keyHS256, JwtAlgorithm.HS256);
-        System.out.println(serialized);
         assertEquals(expectedSerialized, serialized);
+    }
+
+    @Test
+    void parsedJwt_shouldThrowException_whenReSigned(){
+        Jwt jwt = Jwt.parse(expectedSerialized, keyHS256);
+        assertThrowsExactly(JwtStateException.class,()->{
+            jwt.sign(keyHS256,JwtAlgorithm.HS256);
+        });
+    }
+
+    @Test
+    void jwt_shouldThrowException_whenSignedTwice(){
+        Jwt jwt = JwtTestUtils.createExpectedUnsignedJwt();
+        assertDoesNotThrow(()->{
+            jwt.sign(keyHS256, JwtAlgorithm.HS256);
+        });
+
+        assertThrowsExactly(JwtStateException.class,()->{
+            jwt.sign(keyHS256,JwtAlgorithm.HS256);
+        });
+    }
+
+    @Test
+    void jwtClaims_shouldThrowException_whenChangedAfterSign(){
+        Jwt jwt = JwtTestUtils.createExpectedUnsignedJwt();
+        jwt.sign(keyHS256, JwtAlgorithm.HS256);
+        Claims headerClaims = jwt.getHeader().getClaims();
+        Claims payloadClaims = jwt.getPayload().getClaims();
+
+        assertThrowsExactly(JwtStateException.class,()->{
+            headerClaims.put("key","value");
+        });
+
+        assertThrowsExactly(JwtStateException.class,()->{
+            payloadClaims.put("key","value");
+        });
     }
 
     @Test

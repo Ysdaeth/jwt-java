@@ -5,8 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Package protected class. Making it public may potentially make it unsafe.
- * access to the elements should be through the class responsible for claims sharing.
+ * Holder for claims
  * It is possible to lock the claims, which makes it immutable.
  */
 final class Claims {

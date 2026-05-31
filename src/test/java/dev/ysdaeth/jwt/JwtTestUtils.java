@@ -50,6 +50,7 @@ public class JwtTestUtils {
         payload.setIssuedAt(issuedAt);
         payload.setExpiresAt(expiresAt);
         payload.addBytes("bytes", new byte[]{1,2,3});
+        payload.add("iLikeCats", true);
 
         return new Jwt(header, payload);
     }
