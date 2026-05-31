@@ -73,4 +73,9 @@ class JwtTest {
         assertEquals(expPayload, actPayload,"Payload claims does not equal");
     }
 
+    @Test
+    void doStuff(){
+        Header header = new Header();
+    }
+
 }

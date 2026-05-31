@@ -1,7 +1,7 @@
 # JWT for Java
 Easy to use JSON Web Token signer and parser. It is created with simplicity in mind.
-See [How to use](./docs/tutorial.md)
-
+See [How to use](./docs/tutorial.md).
+It uses Jackson Blackbird module for serialization and deserialization.
 > [!WARNING] 
 > Repository is in testing phase, but seems to work
 
