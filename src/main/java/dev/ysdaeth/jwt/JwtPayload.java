@@ -4,19 +4,19 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 
-public final class Payload {
+public final class JwtPayload {
 
-    private final Claims claims;
+    private final JwtClaims claims;
 
-    public Payload(Map<String, Object> claims){
-        this.claims = new Claims(claims);
+    public JwtPayload(Map<String, Object> claims){
+        this.claims = new JwtClaims(claims);
     }
 
-    public Payload(){
-        claims = new Claims();
+    public JwtPayload(){
+        claims = new JwtClaims();
     }
 
-    Payload(Claims claims){
+    JwtPayload(JwtClaims claims){
         this.claims = claims;
     }
 
@@ -155,7 +155,7 @@ public final class Payload {
         this.claims.putAll(claims);
     }
 
-    Claims getClaims() {
+    JwtClaims getClaims() {
         return claims;
     }
 
@@ -168,7 +168,7 @@ public final class Payload {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof Payload other){
+        if(obj instanceof JwtPayload other){
             return claims.equals(other.claims);
         }
         return false;

@@ -8,15 +8,15 @@ import java.util.Set;
  * Holder for claims
  * It is possible to lock the claims, which makes it immutable.
  */
-final class Claims {
+final class JwtClaims {
     private boolean isLocked = false;
     private final Map<String, Object> claimsMap;
 
-    public Claims(Map<String,Object> claimsMap){
+    public JwtClaims(Map<String,Object> claimsMap){
         this.claimsMap = new HashMap<>(claimsMap);
     }
 
-    public Claims(){
+    public JwtClaims(){
         claimsMap = new HashMap<>();
     }
 
@@ -61,7 +61,7 @@ final class Claims {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof Claims other){
+        if(obj instanceof JwtClaims other){
             Map<String,Object> otherMap = other.getMap();
             return mapsEqual(claimsMap, otherMap);
         }

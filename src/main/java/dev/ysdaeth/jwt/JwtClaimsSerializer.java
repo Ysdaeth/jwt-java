@@ -6,7 +6,6 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.module.blackbird.BlackbirdModule;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,33 +20,24 @@ class JwtClaimsSerializer {
                 .build();
     }
 
-    String serializeToBase64(Claims claims){
+    String serializeToBase64(JwtClaims claims){
         Map<String,Object> claimsMap = claims.getMap();
         String serialized = mapper.writeValueAsString(claimsMap);
         byte[] serializedBytes = serialized.getBytes(StandardCharsets.UTF_8);
-        return bytesToBase64(serializedBytes);
+        return JwtBytesPolicy.bytesToBase64(serializedBytes);
     }
 
-
-    Claims deserializeClaimsBase64(String claimsBase64) throws MalformedJwtException {
-        Claims claims;
+    JwtClaims deserializeClaimsBase64(String claimsBase64) throws MalformedJwtException {
+        JwtClaims claims;
         try{
-            byte[] claimsBytes = bytesFromBase64(claimsBase64);
+            byte[] claimsBytes = JwtBytesPolicy.bytesFromBase64(claimsBase64);
             String serializedClaims = new String(claimsBytes, StandardCharsets.UTF_8);
             Map<String, Object> claimsMap = mapper.readValue(serializedClaims, claimsTypeRef);
-            claims = new Claims(claimsMap);
+            claims = new JwtClaims(claimsMap);
         }catch (Exception e){
             throw new MalformedJwtException("Json Web Token claims deserialization failed. "+ e.getMessage(), e);
         }
         return claims;
-    }
-
-    String bytesToBase64(byte[] bytes){
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    byte[] bytesFromBase64(String base64){
-        return Base64.getUrlDecoder().decode(base64);
     }
 
 }

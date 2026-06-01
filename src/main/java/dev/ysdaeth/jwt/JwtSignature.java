@@ -3,15 +3,11 @@ package dev.ysdaeth.jwt;
 import java.util.Arrays;
 import java.util.Base64;
 
-public class Signature {
+public class JwtSignature {
     private final byte[] signature;
 
-    public Signature(byte[] signature){
+    public JwtSignature(byte[] signature){
         this.signature = signature;
-    }
-
-    public Signature(String signature){
-        this.signature = Base64.getUrlDecoder().decode(signature);
     }
 
     byte[] getBytes(){
@@ -20,7 +16,7 @@ public class Signature {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof Signature other){
+        if(obj instanceof JwtSignature other){
             return Arrays.equals(signature, other.signature);
         }
         return false;

@@ -11,11 +11,11 @@ import dev.ysdaeth.jwt.*;
 You can create instance. Constructor requires Header and Payload
 
 ```java
-Header header = new Header();
+JwtHeader header = new JwtHeader();
 header.setKeyId("my-key");
 header.add("key","value");
 
-Payload payload = new Payload();
+JwtPayload payload = new JwtPayload();
 payload.setIssuer("me");
 payload.setSubject("you");
 payload.setExpiresAt(expiresAt);
@@ -42,21 +42,23 @@ String jsonWebToken = ...;
 Key key = ...;
 Jwt jwt = Jwt.parse(jsonWebToken, key);
 
-Payload payload = jwt.getPayload();
-Header header = jwt.getHeader();
+JwtPayload payload = jwt.getPayload();
+JwtHeader header = jwt.getHeader();
 
 String subject = payload.getSubject();
 ```
 
 ### Parsing JWT with KeyLocator
-KeyLocator is a functional interface, it is used to supply the keyId from the header.
+KeyLocator is a functional interface, it is used to supply the unsafe header (not verified) to access required fields 
+like key id or public key location.
 
 ```java
 class MyKeyLocator implements KeyLocator {
     private Key key = ...;
 
-    public Key findKey(String keyId) {
-        if ("my-key".equals(keyId)) return key;
+    public Key findKey(JwtHeader unsafeHeader) {
+        String keyId = unsafeHeader.getKeyId();
+        if("keyId".equals(keyId)) return key;
         return null;
     }
 }
@@ -66,6 +68,7 @@ Jwt jwt = Jwt.parse(jsonWebToken, new MyKeyLocator()); //or lambda expression
 ```
 
 ## Working Example
+
 ```java
 import dev.ysdaeth.jwt.*;
 
@@ -75,15 +78,15 @@ import java.security.SecureRandom;
 import java.time.Instant;
 
 public class Example {
-    
+
     void runExample() throws Exception{
         Key key = MyKeyLocator.key;
 
-        Header header = new Header();
+        JwtHeader header = new JwtHeader();
         header.setKeyId("keyId");
         header.add("customHeader","value");
 
-        Payload payload = new Payload();
+        JwtPayload payload = new JwtPayload();
         payload.setExpiresAt(Instant.now().plusSeconds(300));
         payload.setIssuer("Ysdaeth");
         payload.setSubject("You");
@@ -106,7 +109,7 @@ public class Example {
         }
 
         Jwt parsedJwt = Jwt.parse(jsonWebToken,key);
-        Payload parsedPayload = parsedJwt.getPayload();
+        JwtPayload parsedPayload = parsedJwt.getPayload();
         String subject = parsedPayload.getSubject();
         System.out.println("Hello, " + subject);
 
@@ -120,7 +123,8 @@ public class Example {
         public static Key key = generateKey();
 
         @Override
-        public Key findKey(String keyId) {
+        public Key findKey(JwtHeader unsafeHeader) {
+            String keyId = unsafeHeader.getKeyId();
             if("keyId".equals(keyId)) return key;
             return null;
         }

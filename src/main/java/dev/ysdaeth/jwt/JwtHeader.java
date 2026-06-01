@@ -3,23 +3,23 @@ package dev.ysdaeth.jwt;
 import java.util.Base64;
 import java.util.Map;
 
-public final class Header {
+public final class JwtHeader {
 
-    private final Claims claims;
+    private final JwtClaims claims;
 
-    public Header(Map<String, Object> claims){
-        this.claims = new Claims(claims);
+    public JwtHeader(Map<String, Object> claims){
+        this.claims = new JwtClaims(claims);
     }
 
-    Header(Claims claims){
+    JwtHeader(JwtClaims claims){
         this.claims = claims;
     }
 
-    public Header(){
-        this.claims = new Claims();
+    public JwtHeader(){
+        this.claims = new JwtClaims();
     }
 
-    public Header setKeyId(String keyId){
+    public JwtHeader setKeyId(String keyId){
         claims.put("kid",keyId);
         return this;
     }
@@ -89,7 +89,7 @@ public final class Header {
         return claims.get(key);
     }
 
-    Claims getClaims() {
+    JwtClaims getClaims() {
         return claims;
     }
 
@@ -102,7 +102,7 @@ public final class Header {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof Header other){
+        if(obj instanceof JwtHeader other){
             return claims.equals(other.claims);
         }
         return false;

@@ -1,3 +1,5 @@
+package dev.ysdaeth.jwt.example;
+
 import dev.ysdaeth.jwt.*;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -10,11 +12,11 @@ public class Example {
     void runExample() throws Exception{
         Key key = MyKeyLocator.key;
 
-        Header header = new Header();
+        JwtHeader header = new JwtHeader();
         header.setKeyId("keyId");
         header.add("customHeader","value");
 
-        Payload payload = new Payload();
+        JwtPayload payload = new JwtPayload();
         payload.setExpiresAt(Instant.now().plusSeconds(300));
         payload.setIssuer("Ysdaeth");
         payload.setSubject("You");
@@ -37,7 +39,7 @@ public class Example {
         }
 
         Jwt parsedJwt = Jwt.parse(jsonWebToken,key);
-        Payload parsedPayload = parsedJwt.getPayload();
+        JwtPayload parsedPayload = parsedJwt.getPayload();
         String subject = parsedPayload.getSubject();
         System.out.println("Hello, " + subject);
 
@@ -51,7 +53,8 @@ public class Example {
         public static Key key = generateKey();
 
         @Override
-        public Key findKey(String keyId) {
+        public Key findKey(JwtHeader unsafeHeader) {
+            String keyId = unsafeHeader.getKeyId();
             if("keyId".equals(keyId)) return key;
             return null;
         }

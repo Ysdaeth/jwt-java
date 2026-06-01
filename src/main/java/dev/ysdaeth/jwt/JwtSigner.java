@@ -23,94 +23,123 @@ abstract class JwtSigner {
      * @param jwt jwt instance to create and set signature
      * @param key key to sign
      * @return serialized base64 encoded JWT token
+     * @throws IllegalArgumentException when passed key does not match algorithm instance i.e.
+     * passed Private key when algorithm was HS256, key or JWT was null
      */
-    final String sign(Jwt jwt, Key key) throws MalformedJwtException {
-        Header header = jwt.getHeader();
+    final String sign(Jwt jwt, Key key) throws IllegalArgumentException {
+        if(jwt == null) throw new IllegalArgumentException("Jwt object must not be null");
+        if(key == null) throw new IllegalArgumentException("Jwt signing key must not be null");
+
+        JwtHeader header = jwt.getHeader();
         header.setAlgorithm( algorithm.name() );
         header.setType("JWT");
         String headerBase64 = serializer.serializeToBase64(header.getClaims());
 
-        Payload payload = jwt.getPayload();
+        JwtPayload payload = jwt.getPayload();
         if(payload.getIssuedAt() == null) payload.setIssuedAt(Instant.now());
         String payloadBase64 = serializer.serializeToBase64(payload.getClaims());
 
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder
+        StringBuilder jwtStringBuilder = new StringBuilder();
+        jwtStringBuilder
                 .append(headerBase64)
                 .append('.')
                 .append(payloadBase64);
 
-        byte[] headerPayloadBytes = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
-        Signature signature = createSignature(headerPayloadBytes, key);
-        String signatureBase64 = serializer.bytesToBase64(signature.getBytes());
-        stringBuilder
+        byte[] headerAndPayloadBytes = jwtStringBuilder.toString().getBytes(StandardCharsets.UTF_8);
+        JwtSignature signature = createSignature(headerAndPayloadBytes, key);
+        String signatureBase64 = JwtBytesPolicy.bytesToBase64(signature.getBytes());
+
+        jwtStringBuilder
                 .append('.')
                 .append(signatureBase64);
+
         jwt.setSignature(signature);
 
-        return stringBuilder.toString();
+        return jwtStringBuilder.toString();
     }
 
-    protected abstract Signature createSignature(byte[] message, Key key);
-    protected abstract boolean verify(byte[] message, Signature signature, Key key);
+    /**
+     * Creates signature for message bytes
+     * @param message message to create sign for
+     * @param key key to create signature from message
+     * @return signature bytes
+     * @throws IllegalArgumentException when provided key does not match algorithm instance
+     * @throws RuntimeException any other reason which comes from invalid code, missing dependencies, etc.
+     */
+    protected abstract JwtSignature createSignature(byte[] message, Key key) throws IllegalArgumentException, RuntimeException;
 
-    final Jwt verify(String jwtBase64, Key key) throws MalformedJwtException, SecurityException {
-        String headerBase64 = extractHeaderBase64(jwtBase64);
-        String payloadBase64 = extractPayloadBase64(jwtBase64);
-        String mergedClaims = headerBase64 + '.' + payloadBase64;
-        byte[] message = mergedClaims.getBytes(StandardCharsets.UTF_8);
+    /**
+     * Tests if signature matches the JSON Web Token, and returns parsed {@link Jwt} instance, otherwise throws
+     * {@link SecurityException}
+     * @param jwtBase64 String form of JSON Web Token base64 encoded
+     * @param key key to test if signature matches the header and payload
+     * @return verified deserialized Jwt instance.
+     * @throws IllegalArgumentException when JWT was null.
+     * @throws SecurityException When key is null, key is invalid, key type is incorrect, or signature does not match the token
+     * @throws MalformedJwtException when bytes encoding is incorrect, or when signature matches, but header or payload is not valid JSON.
+     */
+    final Jwt verify(String jwtBase64, Key key) throws MalformedJwtException, SecurityException, IllegalArgumentException {
+        if(key == null) throw new SecurityException("Jwt verification key was null");
+        if(jwtBase64 == null) throw new IllegalArgumentException("JSON Web Token was null");
 
-        String signatureBase64 = extractSignatureBase64(jwtBase64);
-        Signature signature = new Signature(signatureBase64);
+        String[] tokenSections = splitTokenBase64(jwtBase64);
 
-        boolean isValid = verify(message, signature, key);
-        if(!isValid) throw new SecurityException("Invalid Jwt");
+        JwtSignature signature = verify(tokenSections, key);
+        if(signature == null) throw new SecurityException("Jwt signature does not match.");
 
-        Claims headerClaims = serializer.deserializeClaimsBase64(headerBase64);
-        Claims payloadClaims = serializer.deserializeClaimsBase64(payloadBase64);
+        String headerSection = tokenSections[0];
+        JwtClaims headerClaims = serializer.deserializeClaimsBase64(headerSection);
+        JwtHeader header = new JwtHeader(headerClaims);
 
-        Header header = new Header(headerClaims);
-        Payload payload = new Payload(payloadClaims);
+        String payloadSection = tokenSections[1];
+        JwtClaims payloadClaims = serializer.deserializeClaimsBase64(payloadSection);
+        JwtPayload payload = new JwtPayload(payloadClaims);
 
         return new Jwt(header, payload, signature);
     }
 
-    static Header getUnsafeHeader(String serializedJwt) throws MalformedJwtException {
-        String headerBase64 = extractHeaderBase64(serializedJwt);
-        Claims headerClaims = serializer.deserializeClaimsBase64(headerBase64);
-        return new Header(headerClaims);
-    }
+    /**
+     * Tests if header and payload matches the signature, if true, then signature is returned, otherwise {@code null}
+     * @param sections sections of the jwt token in standard order: [Header, Payload, Signature]
+     * @param key key for verification
+     * @return signature if valid, otherwise null
+     */
+    private JwtSignature verify(String[] sections, Key key) throws MalformedJwtException {
+        String merged = sections[0] + "." + sections[1];
+        byte[] mergedBytes = merged.getBytes(StandardCharsets.UTF_8);
 
-    private static String extractHeaderBase64(String jwtBase64){
-        int dotAfter = jwtBase64.indexOf('.');
-        return extractBase64(jwtBase64, 0, dotAfter);
-    }
-    private static String extractPayloadBase64(String jwtBase64) throws MalformedJwtException {
-        int dotBefore = jwtBase64.indexOf('.');
-        int dotAfter = jwtBase64.lastIndexOf('.');
-        return extractBase64(jwtBase64, dotBefore + 1 , dotAfter);
-    }
+        byte[] signatureBytes;
+        try{
+            signatureBytes = JwtBytesPolicy.bytesFromBase64(sections[2]);
+        }catch (MalformedJwtException e){
+            return null;
+        }
 
-    private static String extractSignatureBase64(String jwtBase64) throws MalformedJwtException {
-        int dotBefore = jwtBase64.lastIndexOf('.');
-        return extractBase64(jwtBase64, dotBefore + 1, jwtBase64.length());
+        JwtSignature signature = new JwtSignature(signatureBytes);
+        return verifyMessage(mergedBytes, signature, key)? signature : null;
     }
 
     /**
-     * Extract part of the string, if fails throws {@link MalformedJwtException}
-     * @param jwtBase64 full serialized JSON Web Token.
-     * @param start string index inclusive
-     * @param end string index exclusive
-     * @return substring
-     * @throws MalformedJwtException when failed to find
+     * Tests if message matches the signature
+     * @param message message to verify
+     * @param signature signature to test
+     * @param key key to create signature from message
+     * @return true if message is verified, otherwise false
      */
-    private static String extractBase64(String jwtBase64, int start, int end) throws MalformedJwtException {
-        String base64;
-        try{
-            base64 = jwtBase64.substring(start, end);
-        }catch (Exception e){
-            throw new MalformedJwtException("Signature extraction failed. " + e.getMessage(), e);
-        }
-        return base64;
+    protected abstract boolean verifyMessage(byte[] message, JwtSignature signature, Key key);
+
+    static JwtHeader getUnsafeHeader(String jwtBase64) throws MalformedJwtException {
+        int dotAfter = jwtBase64.indexOf('.');
+        if(dotAfter == -1) throw new MalformedJwtException("Header not found");
+        String headerBase64 = jwtBase64.substring(0, dotAfter);
+        JwtClaims headerClaims = serializer.deserializeClaimsBase64(headerBase64);
+        return new JwtHeader(headerClaims);
+    }
+
+    private static String[] splitTokenBase64(String jsonWebToken) throws MalformedJwtException {
+        if(jsonWebToken == null) throw new MalformedJwtException("Json Web Token must not be null");
+        String[] parts = jsonWebToken.split("\\.");
+        if(parts.length != 3) throw new MalformedJwtException("Json Web Token must have exactly 3 sections");
+        return parts;
     }
 }

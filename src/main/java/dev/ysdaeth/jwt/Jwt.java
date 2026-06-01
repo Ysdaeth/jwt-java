@@ -4,9 +4,9 @@ import java.security.Key;
 import java.util.Objects;
 
 public class Jwt {
-    private final Header header;
-    private final Payload payload;
-    private Signature signature;
+    private final JwtHeader header;
+    private final JwtPayload payload;
+    private JwtSignature signature;
 
     /**
      * Constructor used by this package ONLY classes to create unsafe instance, or other reason.
@@ -15,7 +15,7 @@ public class Jwt {
      * @param payload payload
      * @param signature signature
      */
-    Jwt(Header header, Payload payload, Signature signature){
+    Jwt(JwtHeader header, JwtPayload payload, JwtSignature signature){
         this.header = header;
         this.payload = payload;
         this.signature = signature;
@@ -27,13 +27,13 @@ public class Jwt {
      * @param header JWT Header
      * @param payload JWT Payload
      */
-    public Jwt(Header header, Payload payload){
+    public Jwt(JwtHeader header, JwtPayload payload){
         this.header = Objects.requireNonNull( header);
         this.payload = Objects.requireNonNull(payload);
     }
 
     /**
-     * Creates {@link Signature} for that instance as a field value, then
+     * Creates {@link JwtSignature} for that instance as a field value, then
      * returns string which is full compact (serialized) JSON Web Token.
      * @param signKey key used to sign the token
      * @param jwtAlgorithm type of jwt like. RS256, HS256, etc.
@@ -55,7 +55,7 @@ public class Jwt {
      * Returns mutable header instance
      * @return Jwt header instance
      */
-    public Header getHeader() {
+    public JwtHeader getHeader() {
         return header;
     }
 
@@ -64,15 +64,15 @@ public class Jwt {
      * and every set method will throw {@link JwtStateException}
      * @return jwt payload instance
      */
-    public Payload getPayload() {
+    public JwtPayload getPayload() {
         return payload;
     }
 
     /**
-     * Returns immutable {@link Signature} of the signed Jwt token.
+     * Returns immutable {@link JwtSignature} of the signed Jwt token.
      * @return Jwt signature object
      */
-    public Signature getSignature() {
+    public JwtSignature getSignature() {
         return signature;
     }
 
@@ -81,7 +81,7 @@ public class Jwt {
      * Signature can be assigned only once for safety reasons.
      * @param signature signature for that instance.
      */
-    void setSignature(Signature signature){
+    void setSignature(JwtSignature signature){
         if(this.signature != null) throw new RuntimeException("JWT Signature must not be re-assigned");
         this.signature = signature;
     }
@@ -97,16 +97,16 @@ public class Jwt {
     public static Jwt parse(String jwt, Key verificationKey)
             throws MalformedJwtException, SecurityException {
 
-        Header header = JwtSigner.getUnsafeHeader(jwt);
+        JwtHeader header = JwtSigner.getUnsafeHeader(jwt);
         JwtAlgorithm algorithm = extractAlgorithm(header);
         return parse(jwt, algorithm, verificationKey);
     }
 
     public static Jwt parse(String serializedJwt, KeyLocator verificationKeyLocator)
             throws MalformedJwtException, SecurityException {
-        Header header = JwtSigner.getUnsafeHeader(serializedJwt);
-        Key key = verificationKeyLocator.findKey( header.getKeyId() );
-        JwtAlgorithm algorithm = extractAlgorithm(header);
+        JwtHeader unsafeHeader = JwtSigner.getUnsafeHeader(serializedJwt);
+        Key key = verificationKeyLocator.findKey( unsafeHeader );
+        JwtAlgorithm algorithm = extractAlgorithm(unsafeHeader);
         return parse(serializedJwt, algorithm, key);
     }
 
@@ -122,7 +122,7 @@ public class Jwt {
         return jwtDeserialized;
     }
 
-    private static JwtAlgorithm extractAlgorithm(Header header) throws MalformedJwtException {
+    private static JwtAlgorithm extractAlgorithm(JwtHeader header) throws MalformedJwtException {
         String algorithmName = header.getAlgorithm();
         try{
             return JwtAlgorithm.valueOf(algorithmName);
