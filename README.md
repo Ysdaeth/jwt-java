@@ -1,26 +1,16 @@
 # JWT for Java
-Easy to use JSON Web Token signer and parser. It is created with simplicity in mind.
-See [How to use](./docs/tutorial.md).
-It uses Jackson Blackbird module for serialization and deserialization.
-> [!WARNING] 
-> Repository is in testing phase, but seems to work
+Easy to use JSON Web Token library, created to simplify work with JWT and minimize confusion. Unlike jwt.io, 
+it is designed to avoid creating different types with generics. JWT should be a simple object, so it is.  
+See [How to use](./docs/tutorial.md).  
+- Uses Jackson Blackbird module for serialization and deserialization.
 
 ## Supported Algorithms
 - HS256
-
-## TODO
-### Support for
-- [ ] HS384
-- [ ] HS512
-- [ ] RS256
-
-### Docs
-More docs
-
-### Tests
-- More unit tests
-- Compatibility tests
+- RS256
 
 ## Requiremets
 - Java 21
 - Designed for OpenJDK
+
+## TODO
+other algorithms implementations
