@@ -1,5 +1,7 @@
 package dev.ysdaeth.jwt;
 
+import dev.ysdaeth.jwt.exception.JwtMalformedException;
+
 import java.util.Base64;
 
 class JwtBytesPolicy {
@@ -8,11 +10,11 @@ class JwtBytesPolicy {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    static byte[] bytesFromBase64(String base64) throws MalformedJwtException {
+    static byte[] bytesFromBase64(String base64) throws JwtMalformedException {
         try{
             return Base64.getUrlDecoder().decode(base64);
         }catch (Exception e){
-            throw new MalformedJwtException("Incorrect bytes encoding");
+            throw new JwtMalformedException("Incorrect bytes encoding");
         }
 
     }

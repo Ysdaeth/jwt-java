@@ -1,5 +1,7 @@
 package dev.ysdaeth.jwt;
 
+import dev.ysdaeth.jwt.exception.*;
+
 import java.security.Key;
 import java.util.Objects;
 
@@ -39,20 +41,17 @@ public class Jwt {
      * @param jwtAlgorithm type of jwt like. RS256, HS256, etc.
      * @return JSON Web Token as a string base64 encoded with separators '.'
      */
-    public String sign(Key signKey, JwtAlgorithm jwtAlgorithm) throws JwtStateException{
+    public String sign(Key signKey, JwtAlgorithm jwtAlgorithm) throws JwtStateException {
         if(this.signature != null) throw new JwtStateException("Jwt is already signed");
-
-        JwtSigner signer = JwtSignerFactory.getInstance( jwtAlgorithm );
-        if(signer == null) throw new RuntimeException(
-                "There is no such registered jwt algorithm '%s'".formatted(jwtAlgorithm.name()));
-
+        JwtSigner signer = JwtSignerFactory.getInstance(jwtAlgorithm);
         String jwt = signer.sign(this, signKey);
         lock();
         return jwt;
     }
 
     /**
-     * Returns mutable header instance
+     * Returns mutable (when unsigned) or immutable (when signed) instance.
+     * Immutable instance will throw exception when claims are modified
      * @return Jwt header instance
      */
     public JwtHeader getHeader() {
@@ -60,8 +59,8 @@ public class Jwt {
     }
 
     /**
-     * Returns mutable Jwt payload instance
-     * and every set method will throw {@link JwtStateException}
+     * Returns mutable (when unsigned) or immutable (when signed) instance.
+     * Immutable instance will throw exception when claims are modified
      * @return jwt payload instance
      */
     public JwtPayload getPayload() {
@@ -69,7 +68,7 @@ public class Jwt {
     }
 
     /**
-     * Returns immutable {@link JwtSignature} of the signed Jwt token.
+     * Returns immutable {@link JwtSignature} of the signed Jwt token or null when not signed.
      * @return Jwt signature object
      */
     public JwtSignature getSignature() {
@@ -94,40 +93,69 @@ public class Jwt {
         header.lock();
     }
 
+    /**
+     * Parse string format of JSON Web Token to object representation. Returned Jwt instance is always valid
+     * and not expired. Parsed JWT instance throws exception when claims are modified.
+     * @param jwt JSON Web Token base64 encoded
+     * @param verificationKey Key to verify JWT signature
+     * @return verified and immutable JWT instance
+     * @throws JwtMalformedException when jwt is malformed, bytes encoding is incorrect, etc.
+     * @throws JwtSignatureException when signature does not match.
+     * @throws JwtExpiredException when jwt is expired
+     * @throws JwtUnsupportedException when algorithm or type is not supported
+     */
     public static Jwt parse(String jwt, Key verificationKey)
-            throws MalformedJwtException, SecurityException {
+            throws JwtMalformedException, JwtSignatureException, JwtExpiredException, JwtUnsupportedException {
 
         JwtHeader header = JwtSigner.getUnsafeHeader(jwt);
         JwtAlgorithm algorithm = extractAlgorithm(header);
         return parse(jwt, algorithm, verificationKey);
     }
 
-    public static Jwt parse(String serializedJwt, KeyLocator verificationKeyLocator)
-            throws MalformedJwtException, SecurityException {
-        JwtHeader unsafeHeader = JwtSigner.getUnsafeHeader(serializedJwt);
+    /**
+     * Parse string format of JSON Web Token to object representation. Returned Jwt instance is always valid
+     * and not expired. Parsed JWT instance throws exception when claims are modified.
+     * @param jwt JSON Web Token base64 encoded
+     * @param verificationKeyLocator Functional interface that provides key to verify signature
+     * @return verified and immutable JWT instance
+     * @throws JwtMalformedException when jwt is malformed, bytes encoding is incorrect, etc.
+     * @throws JwtSignatureException when signature does not match.
+     * @throws JwtExpiredException when jwt is expired
+     * @throws JwtUnsupportedException when algorithm or type is not supported
+     */
+    public static Jwt parse(String jwt, KeyLocator verificationKeyLocator)
+            throws JwtMalformedException, JwtSignatureException, JwtExpiredException, JwtUnsupportedException {
+        JwtHeader unsafeHeader = JwtSigner.getUnsafeHeader(jwt);
         Key key = verificationKeyLocator.findKey( unsafeHeader );
         JwtAlgorithm algorithm = extractAlgorithm(unsafeHeader);
-        return parse(serializedJwt, algorithm, key);
+        return parse(jwt, algorithm, key);
     }
 
+    /**
+     * Parse string format of JSON Web Token to object representation. Returned Jwt instance is always valid
+     * and not expired. Parsed JWT instance throws exception when claims are modified.
+     * @param jwt JSON Web Token base64 encoded
+     * @param key key to verify signature
+     * @return verified and immutable JWT instance
+     * @throws JwtMalformedException when jwt is malformed, bytes encoding is incorrect, etc.
+     * @throws JwtSignatureException when signature does not match.
+     * @throws JwtExpiredException when jwt is expired
+     * @throws JwtUnsupportedException when algorithm or type is not supported
+     */
     private static Jwt parse(String jwt, JwtAlgorithm jwtAlgorithm, Key key)
-            throws MalformedJwtException, SecurityException {
+            throws JwtMalformedException, JwtSignatureException, JwtExpiredException, JwtUnsupportedException {
         JwtSigner signer = JwtSignerFactory.getInstance(jwtAlgorithm);
-        if(signer == null){
-            throw new RuntimeException(
-                    "Unsupported algorithm '%s'".formatted(jwtAlgorithm));
-        }
         Jwt jwtDeserialized = signer.verify(jwt, key);
         jwtDeserialized.lock();
         return jwtDeserialized;
     }
 
-    private static JwtAlgorithm extractAlgorithm(JwtHeader header) throws MalformedJwtException {
+    private static JwtAlgorithm extractAlgorithm(JwtHeader header) throws JwtUnsupportedException{
         String algorithmName = header.getAlgorithm();
         try{
             return JwtAlgorithm.valueOf(algorithmName);
         }catch (Exception e){
-            throw new MalformedJwtException("Unknown JWT algorithm type '%s' ".formatted(algorithmName));
+            throw new JwtUnsupportedException("Unsupported JWT algorithm '%s' ".formatted(algorithmName));
         }
     }
 

@@ -1,5 +1,6 @@
 package dev.ysdaeth.jwt;
 
+import dev.ysdaeth.jwt.exception.*;
 import org.junit.jupiter.api.Test;
 import javax.crypto.KeyGenerator;
 import static org.junit.jupiter.api.Assertions.*;
@@ -7,6 +8,7 @@ import java.security.Key;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.time.Instant;
 
 class JwtTest {
 
@@ -26,7 +28,7 @@ class JwtTest {
         String token = JwtTestUtils.loadJwt("HS256.token");
         Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
 
-        assertThrowsExactly(SecurityException.class,()->{
+        assertThrowsExactly(JwtSignatureException.class,()->{
             Jwt.parse(token, key);
         });
     }
@@ -111,4 +113,38 @@ class JwtTest {
         assertEquals(expected, parsed,"JWT instances are not equal");
     }
 
+    @Test
+    void parse_shouldThrow_MalformedException(){
+        String token = "invalid.token";
+        Key key = null;
+
+        assertThrowsExactly(JwtMalformedException.class,()->{
+            Jwt.parse(token,key);
+        });
+    }
+
+    @Test
+    void parse_shouldThrow_ExpiredException() throws Exception{
+        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
+
+        JwtHeader header = new JwtHeader();
+        JwtPayload payload = new JwtPayload();
+        payload.setExpiresAt(Instant.now().minusSeconds(10));
+        Jwt jwt = new Jwt(header, payload);
+
+        String token = jwt.sign(key, JwtAlgorithm.HS256);
+
+        assertThrowsExactly(JwtExpiredException.class,()->{
+            Jwt.parse(token,key);
+        });
+    }
+
+    @Test
+    void parse_shouldThrow_UnsupportedException() throws Exception{
+        String token = "eyJhbGciOiJ1bmtub3duIn0.e30.e30";
+        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        assertThrowsExactly(JwtUnsupportedException.class,()->{
+            Jwt.parse(token,key);
+        });
+    }
 }

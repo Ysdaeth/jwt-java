@@ -1,5 +1,7 @@
 package dev.ysdaeth.jwt;
 
+import dev.ysdaeth.jwt.exception.JwtUnsupportedException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,18 +13,16 @@ class JwtSignerFactory {
         signers.put(JwtAlgorithm.RS256, new JwtSignerRS256());
     }
 
-    static void register(JwtAlgorithm jwtAlgorithm, JwtSigner signer){
-        if(signers.get(jwtAlgorithm) != null) throw new RuntimeException(
-                "Jwt algorithm '%s' is already registered.".formatted(jwtAlgorithm));
-        signers.put(jwtAlgorithm, signer);
-    }
-
     /**
      * Registered signer if exists, otherwise null
      * @param jwtAlgorithm Jwt algorithm
      * @return instance or null
      */
     static JwtSigner getInstance(JwtAlgorithm jwtAlgorithm){
-        return signers.get(jwtAlgorithm);
+        JwtSigner signer =  signers.get(jwtAlgorithm);
+        if(signer == null) throw new JwtUnsupportedException(
+                "There is no such registered jwt algorithm '%s'".formatted(jwtAlgorithm.name())
+        );
+        return signer;
     }
 }

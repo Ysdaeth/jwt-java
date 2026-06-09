@@ -1,5 +1,6 @@
 package dev.ysdaeth.jwt;
 
+import dev.ysdaeth.jwt.exception.JwtMalformedException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -27,7 +28,7 @@ class JwtClaimsSerializer {
         return JwtBytesPolicy.bytesToBase64(serializedBytes);
     }
 
-    JwtClaims deserializeClaimsBase64(String claimsBase64) throws MalformedJwtException {
+    JwtClaims deserializeClaimsBase64(String claimsBase64) throws JwtMalformedException {
         JwtClaims claims;
         try{
             byte[] claimsBytes = JwtBytesPolicy.bytesFromBase64(claimsBase64);
@@ -35,7 +36,7 @@ class JwtClaimsSerializer {
             Map<String, Object> claimsMap = mapper.readValue(serializedClaims, claimsTypeRef);
             claims = new JwtClaims(claimsMap);
         }catch (Exception e){
-            throw new MalformedJwtException("Json Web Token claims deserialization failed. "+ e.getMessage(), e);
+            throw new JwtMalformedException("Json Web Token claims deserialization failed. "+ e.getMessage(), e);
         }
         return claims;
     }

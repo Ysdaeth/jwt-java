@@ -1,6 +1,8 @@
 package dev.ysdaeth.jwt.example;
 
 import dev.ysdaeth.jwt.*;
+import dev.ysdaeth.jwt.exception.JwtStateException;
+import org.junit.jupiter.api.Test;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
@@ -8,6 +10,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 
 public class Example {
+
 
     void runExample() throws Exception{
         Key key = MyKeyLocator.key;

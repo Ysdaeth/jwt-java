@@ -67,7 +67,7 @@ public class JwtTestUtils {
         header.setAlgorithm(algorithm);
 
         Instant issuedAt = Instant.parse("2026-05-30T14:00:00Z");
-        Instant expiresAt = Instant.parse("2026-05-30T14:15:00Z");
+        Instant expiresAt = Instant.parse("2099-05-30T14:15:00Z");
 
         JwtPayload payload = new JwtPayload();
         payload.setIssuer("me");

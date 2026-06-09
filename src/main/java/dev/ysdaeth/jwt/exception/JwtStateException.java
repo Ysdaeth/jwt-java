@@ -1,4 +1,4 @@
-package dev.ysdaeth.jwt;
+package dev.ysdaeth.jwt.exception;
 
 public class JwtStateException extends RuntimeException {
     public JwtStateException(String message) {

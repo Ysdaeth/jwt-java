@@ -1,5 +1,7 @@
 package dev.ysdaeth.jwt;
 
+import dev.ysdaeth.jwt.exception.JwtStateException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
