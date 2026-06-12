@@ -18,7 +18,8 @@ abstract class JwtSigner {
     }
 
     /**
-     * Creates Jwt signature, then set it as the jwt field, finally returns serialized base64 JWT
+     * Creates JSON Web Token signature, then sets it as a field of the passed Jwt instance.
+     * Finally returns serialized base64 JWT
      * @param jwt jwt instance to create and set signature
      * @param key key to sign
      * @return serialized base64 encoded JWT token
@@ -70,8 +71,8 @@ abstract class JwtSigner {
      * @throws JwtSignatureException When jwt signature does not match.
      */
     final Jwt verify(String jwtBase64, Key key) throws JwtExpiredException, JwtMalformedException, JwtSignatureException {
-        if(key == null) throw new JwtSignatureException("Jwt verification key was null");
-        if(jwtBase64 == null) throw new JwtSignatureException("JSON Web Token was null");
+        if(key == null) throw new JwtSignatureException("JSON Web Token verification key was null");
+        if(jwtBase64 == null) throw new JwtMalformedException("JSON Web Token was null");
 
         String[] tokenSections = splitTokenBase64(jwtBase64);
 
@@ -128,11 +129,12 @@ abstract class JwtSigner {
     protected abstract boolean verifyMessage(byte[] message, JwtSignature signature, Key key);
 
     /**
-     * Returns header which is not verified, or throws Exception when malformed
+     * Returns not verified header, or throws Exception when malformed
      */
     static JwtHeader getUnsafeHeader(String jwtBase64) throws JwtMalformedException {
+        if(jwtBase64 == null) throw new JwtMalformedException("Cannot extract header of null JSON Web Token");
         int dotAfter = jwtBase64.indexOf('.');
-        if(dotAfter == -1) throw new JwtMalformedException("Header not found");
+        if(dotAfter == -1) throw new JwtMalformedException("Invalid JSON Web Token");
 
         String headerBase64 = jwtBase64.substring(0, dotAfter);
         JwtClaims headerClaims = serializer.deserializeClaimsBase64(headerBase64);
@@ -140,10 +142,10 @@ abstract class JwtSigner {
         return new JwtHeader(headerClaims);
     }
 
-    private static String[] splitTokenBase64(String jsonWebToken) throws JwtMalformedException {
-        if(jsonWebToken == null) throw new IllegalArgumentException("Json Web Token must not be null");
-        String[] parts = jsonWebToken.split("\\.");
-        if(parts.length != 3) throw new JwtMalformedException("Json Web Token must have exactly 3 sections");
+    private static String[] splitTokenBase64(String jwtBase64) throws JwtMalformedException {
+        if(jwtBase64 == null) throw new JwtMalformedException("JSON Web Token is null");
+        String[] parts = jwtBase64.split("\\.");
+        if(parts.length != 3) throw new JwtMalformedException("JSON Web Token must have exactly 3 sections");
         return parts;
     }
 }

@@ -36,7 +36,7 @@ class JwtClaimsSerializer {
             Map<String, Object> claimsMap = mapper.readValue(serializedClaims, claimsTypeRef);
             claims = new JwtClaims(claimsMap);
         }catch (Exception e){
-            throw new JwtMalformedException("Json Web Token claims deserialization failed. "+ e.getMessage(), e);
+            throw new JwtMalformedException("JSON Web Token claims deserialization failed. "+ e.getMessage(), e);
         }
         return claims;
     }

@@ -44,9 +44,9 @@ public class Jwt {
     public String sign(Key signKey, JwtAlgorithm jwtAlgorithm) throws JwtStateException {
         if(this.signature != null) throw new JwtStateException("Jwt is already signed");
         JwtSigner signer = JwtSignerFactory.getInstance(jwtAlgorithm);
-        String jwt = signer.sign(this, signKey);
+        String token = signer.sign(this, signKey);
         lock();
-        return jwt;
+        return token;
     }
 
     /**

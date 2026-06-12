@@ -147,4 +147,13 @@ class JwtTest {
             Jwt.parse(token,key);
         });
     }
+
+    @Test
+    void nullToken_shouldThrowMalformedException() throws Exception {
+        String token = null;
+        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        assertThrowsExactly(JwtMalformedException.class,()->{
+            Jwt.parse(token, key);
+        });
+    }
 }
