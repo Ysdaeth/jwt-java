@@ -6,7 +6,7 @@ import java.util.Base64;
 
 class JwtBytesPolicy {
 
-    static String bytesToBase64(byte[] bytes){
+    static String bytesToBase64(byte[] bytes) {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 

@@ -2,6 +2,7 @@ package dev.ysdaeth.jwt;
 
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Map;
 
 public final class JwtPayload {
@@ -58,11 +59,9 @@ public final class JwtPayload {
 
     public Instant getIssuedAt(){
         Object value = claims.get("iat");
-
         if(value instanceof Number number){
             return Instant.ofEpochSecond(number.longValue());
         }
-
         return null;
     }
 
@@ -72,11 +71,9 @@ public final class JwtPayload {
 
     public Instant getExpireAt(){
         Object value = claims.get("exp");
-
         if(value instanceof Number number){
             return Instant.ofEpochSecond(number.longValue());
         }
-
         return null;
     }
 
@@ -86,45 +83,46 @@ public final class JwtPayload {
 
     public Instant getNotBefore(){
         Object value = claims.get("nbf");
-
         if(value instanceof Number number){
             return Instant.ofEpochSecond(number.longValue());
         }
-
         return null;
     }
 
-    public void add(String key, Object value){
+    public void add(String key, String value){
+        claims.put(key,value);
+    }
+
+    public void add(String key, Number value){
+        claims.put(key,value);
+    }
+
+    public void add(String key, Boolean value){
+        claims.put(key,value);
+    }
+
+    /**
+     * It supports Collection values that are other Collection or Map and
+     * stores it as immutable copy of the collection. If object in collection is
+     * mutable (apart from Collection or Map) it will not prevent from changing it,
+     * so it is preferred to keep immutable objects as values.
+     * @param key name of the field
+     * @param value map
+     */
+    public void add(String key, Collection<?> value){
         claims.put(key, value);
     }
 
-    public Object get(String key){
-        return claims.get(key);
-    }
-
-    public String getString(String key){
-        Object value = claims.get(key);
-        return value != null ? value.toString() : null;
-    }
-
-    public Long getLong(String key){
-        Object value = claims.get(key);
-
-        if(value instanceof Number number){
-            return number.longValue();
-        }
-
-        return null;
-    }
-
-    public Boolean getBoolean(String key){
-        Object value = claims.get(key);
-
-        if(value instanceof Boolean bool){
-            return bool;
-        }
-
-        return null;
+    /**
+     * It supports Map values that are other Maps or Collections and
+     * stores it as immutable copy of the collection. If object in collection is
+     * mutable (apart from Collection or Map) it  will not prevent from changing its fields,
+     * so it is preferred to keep immutable objects as values.
+     * @param key name of the field
+     * @param value map
+     */
+    public void add(String key, Map<?,?> value){
+        claims.put(key, value);
     }
 
     /**
@@ -142,17 +140,25 @@ public final class JwtPayload {
      */
     public byte[] getBytes(String key){
         Object value = claims.get(key);
-
+        if(value == null) return null;
         if(value instanceof String base64){
-            return Base64.getUrlDecoder().decode(base64);
+            try{
+                return Base64.getUrlDecoder().decode(base64);
+            }catch (Exception e){
+                throw new ClassCastException(e.getMessage());
+            }
         }
-
-        return null;
+        throw new ClassCastException("Incorrect data type");
     }
 
-    public void setClaims(Map<String, Object> claims){
-        this.claims.clear();
-        this.claims.putAll(claims);
+    public <T> T get(String key){
+        Object value = claims.get(key);
+        if(value == null) return null;
+        try{
+            return (T) value;
+        }catch (Exception e){
+            throw new ClassCastException("Incorrect object type for key '%s'".formatted(key));
+        }
     }
 
     JwtClaims getClaims() {

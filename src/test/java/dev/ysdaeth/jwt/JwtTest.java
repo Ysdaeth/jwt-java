@@ -9,8 +9,23 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.time.Instant;
+import java.util.List;
 
 class JwtTest {
+
+    @Test
+    void parsedJwt_shouldBeImmutable() throws Exception {
+        Key signKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+
+        Jwt jwt = new Jwt(new JwtHeader(), new JwtPayload());
+        String token = jwt.sign(signKey, JwtAlgorithm.HS256);
+        Jwt immutableJwt = Jwt.parse(token,signKey);
+
+        assertThrowsExactly(JwtStateException.class,()->{
+            immutableJwt.getPayload().add("key","value");
+        });
+    }
+
 
     @Test
     void parsedJwt_shouldThrowException_whenReSigned() throws Exception{
@@ -24,7 +39,7 @@ class JwtTest {
     }
 
     @Test
-    void parsedJwt_shouldThrowException_whenKeyDoesNotMatch() throws Exception{
+    void parsedJwt_shouldThrowException_whenSignKeyDoesNotMatch() throws Exception{
         String token = JwtTestUtils.loadJwt("HS256.token");
         Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
 
@@ -64,6 +79,42 @@ class JwtTest {
         });
     }
 
+    @Test
+    void get_shouldReturnList() throws Exception{
+        JwtPayload payload = new JwtPayload();
+        payload.add("my-list", List.of("one","two"));
+        Jwt jwt = new Jwt(new JwtHeader(), payload);
+
+        Key singKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        String token = jwt.sign(singKey,JwtAlgorithm.HS256);
+
+        Jwt parsed = Jwt.parse(token, singKey);
+        assertDoesNotThrow(
+                ()-> {
+                    List<String> x = parsed.getPayload().get("my-list");
+                }, "Failed to obtain List from JWT Payload");
+
+
+        List<String> actualList = parsed.getPayload().get("my-list");
+        assertTrue(actualList.contains("one"), "List from payload has missing elements");
+        assertTrue(actualList.contains("two"), "List from payload has missing elements");
+    }
+
+    @Test
+    void get_shouldThrow_ClassCastException() throws Exception {
+        JwtPayload payload = new JwtPayload();
+        payload.add("my-list", List.of("one","two"));
+        Jwt jwt = new Jwt(new JwtHeader(), payload);
+
+        Key singKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        String token = jwt.sign(singKey,JwtAlgorithm.HS256);
+
+        JwtPayload expectedPayload = Jwt.parse(token, singKey).getPayload();
+        assertThrowsExactly(ClassCastException.class,()->{
+            Boolean x = expectedPayload.get("my-list");
+        });
+    }
+
     // ALGORITHM TESTS
 
     @Test
@@ -89,14 +140,14 @@ class JwtTest {
     }
 
     @Test
-    void sign_RS256_shouldSerializeToExpectedValue() throws Exception {
+    void sign_RS256_shouldSerializeToExpectedToken() throws Exception {
         KeyPair keyPair = JwtTestUtils.loadKeyPair("RS256.pair");
         PrivateKey privateKey = keyPair.getPrivate();
-        String expected = JwtTestUtils.loadJwt("RS256.token");
+        String expectedToken = JwtTestUtils.loadJwt("RS256.token");
 
         Jwt jwt = JwtTestUtils.createExpectedJwt("RS256", null);
-        String serialized = jwt.sign(privateKey, JwtAlgorithm.RS256);
-        assertEquals(expected, serialized);
+        String actualToken = jwt.sign(privateKey, JwtAlgorithm.RS256);
+        assertEquals(expectedToken, actualToken);
     }
 
     @Test

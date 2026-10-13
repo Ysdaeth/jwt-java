@@ -2,9 +2,7 @@ package dev.ysdaeth.jwt;
 
 import dev.ysdaeth.jwt.exception.JwtStateException;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Holder for claims
@@ -15,36 +13,66 @@ final class JwtClaims {
     private final Map<String, Object> claimsMap;
 
     public JwtClaims(Map<String,Object> claimsMap){
-        this.claimsMap = new HashMap<>(claimsMap);
+        this.claimsMap = new HashMap<>();
+        putAll(claimsMap);
     }
 
     public JwtClaims(){
         claimsMap = new HashMap<>();
     }
 
-    Object get(String key){
-        return claimsMap.get(key);
+    <T> T get(String key) throws ClassCastException {
+        Object value = claimsMap.get(key);
+        return (T) defensiveCopy(value);
     }
 
-    void put(String key, Object value){
+    /**
+     * Object should be a {@link Collection}, {@link Map} or
+     * immutable object like CharSequence, Integer, Boolean otherwise it may be possible
+     * to change object state by the reference.
+     * @param key name of the claim
+     * @param value value of the claim, Collection, Map or immutable Object
+     * @throws JwtStateException when this instance is locked
+     */
+    private void putValue(String key, Object value) throws JwtStateException {
         if(isLocked) throw new JwtStateException(
-                "Claims cannot be changed when JWT is signed");
-        this.claimsMap.put(key, value);
+                "Locked claims cannot be changed");
+        this.claimsMap.put(key, defensiveCopy(value));
     }
 
-    void putAll(Map<String,Object> claims){
-        if(isLocked) throw new JwtStateException(
-                "Claims cannot be changed when JWT is signed");
-        this.claimsMap.putAll(claims);
+    void put(String key, Collection<?> value){
+        putValue(key, value);
+    }
+
+    void put(String key, Map<?,?> value){
+        putValue(key, value);
+    }
+
+    void put(String key, String value) throws JwtStateException {
+        putValue(key, value);
+    }
+
+    void put(String key, Number value){
+        putValue(key, value);
+    }
+
+    void put(String key, Boolean value){
+        putValue(key, value);
+    }
+
+    void putAll(Map<String,Object> claimsMap) {
+        for(Map.Entry<String, Object> e: claimsMap.entrySet()){
+            putValue(e.getKey(), e.getValue());
+        }
     }
 
     void lock(){
         isLocked = true;
     }
 
-    void clear(){
+    void clear() throws JwtStateException {
         if(isLocked) throw new JwtStateException(
-                "Claims cannot be changed when JWT is signed");
+                "Locked claims cannot be changed");
         claimsMap.clear();
     }
 
@@ -64,12 +92,13 @@ final class JwtClaims {
     @Override
     public boolean equals(Object obj) {
         if(obj instanceof JwtClaims other){
-            Map<String,Object> otherMap = other.getMap();
-            return mapsEqual(claimsMap, otherMap);
+            Map<String,Object> otherClaimsMap = other.getMap();
+            return areEqualMaps(claimsMap, otherClaimsMap);
         }
         return false;
     }
-    private static boolean mapsEqual(Map<String, Object> src, Map<String, Object> target){
+
+    private static boolean areEqualMaps(Map<String, Object> src, Map<String, Object> target){
         if(src.size() != target.size()) return false;
         Set<String> srcKeySet = src.keySet();
 
@@ -78,13 +107,13 @@ final class JwtClaims {
             Object srcObj = src.get(key);
             Object targetObj = target.get(key);
 
-            boolean equals = valuesEqual(srcObj, targetObj);
+            boolean equals = areEqualValues(srcObj, targetObj);
             if(!equals) return false;
         }
         return true;
     }
 
-    private static boolean valuesEqual(Object srcObj, Object targetObj) {
+    private static boolean areEqualValues(Object srcObj, Object targetObj) {
         if (srcObj == targetObj) return true;
         if (srcObj == null || targetObj == null) return false;
 
@@ -93,5 +122,21 @@ final class JwtClaims {
         }
 
         return srcObj.equals(targetObj);
+    }
+
+    private static Object defensiveCopy(Object value){
+        if(value instanceof Map<?,?> map){
+            Map<Object,Object> copy = new HashMap<>();
+            map.forEach(
+                    (k,v)-> copy.put(k,defensiveCopy(v))
+            );
+            return copy;
+        }
+
+        if(value instanceof Collection<?> collection){
+            return collection.stream().map(JwtClaims::defensiveCopy).toList();
+        }
+
+        return value;
     }
 }

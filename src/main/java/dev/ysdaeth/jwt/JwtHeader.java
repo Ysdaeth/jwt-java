@@ -1,6 +1,7 @@
 package dev.ysdaeth.jwt;
 
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Map;
 
 public final class JwtHeader {
@@ -28,9 +29,7 @@ public final class JwtHeader {
      * @return key id or null when does not exist
      */
     public String getKeyId(){
-        Object value = claims.get("kid");
-        if(value instanceof String) return (String) value;
-        return null;
+        return claims.get("kid");
     }
 
     public void setType(String type){
@@ -41,9 +40,7 @@ public final class JwtHeader {
      * @return jwt type
      */
     public String getType(){
-        Object value = claims.get("typ");
-        if(value instanceof String) return (String) value;
-        return null;
+        return claims.get("typ");
     }
 
     public void setAlgorithm(String alg){
@@ -54,9 +51,7 @@ public final class JwtHeader {
      * @return jwt type or null when does not exist
      */
     public String getAlgorithm(){
-        Object value = claims.get("alg");
-        if(value instanceof String) return (String) value;
-        return null;
+        return claims.get("alg");
     }
 
     public void setPublicKey(byte[] verificationKey){
@@ -70,15 +65,45 @@ public final class JwtHeader {
      * @return computed public key or null when does not exist
      */
     public byte[] getPublicKey(){
-        Object value = claims.get("jwk");
-        if(value instanceof String base64){
-            return Base64.getUrlDecoder().decode(base64);
-        }
-        return null;
+        String base64 = claims.get("jwk");
+        if(base64 == null) return null;
+        return Base64.getUrlDecoder().decode(base64);
     }
 
-    public void add(String key, Object value){
+    public void add(String key, String value){
         claims.put(key,value);
+    }
+
+    public void add(String key, Number value){
+        claims.put(key,value);
+    }
+
+    public void add(String key, Boolean value){
+        claims.put(key,value);
+    }
+
+    /**
+     * It supports Collection values that are other Collection or Map and
+     * stores it as immutable copy of the collection. If object in collection is
+     * mutable (apart from Collection or Map) it will not prevent from changing it,
+     * so it is preferred to keep immutable objects as values.
+     * @param key name of the field
+     * @param value map
+     */
+    public void add(String key, Collection<?> value){
+        claims.put(key, value);
+    }
+
+    /**
+     * It supports Map values that are other Maps or Collections and
+     * stores it as immutable copy of the collection. If object in collection is
+     * mutable (apart from Collection or Map) it  will not prevent from changing its fields,
+     * so it is preferred to keep immutable objects as values.
+     * @param key name of the field
+     * @param value map
+     */
+    public void add(String key, Map<?,?> value){
+        claims.put(key, value);
     }
 
     /**
