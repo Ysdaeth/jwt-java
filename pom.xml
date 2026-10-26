@@ -55,6 +55,12 @@
     <build>
         <plugins>
 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.15.0</version>
+            </plugin>
+
             <!-- Javadoc -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -90,7 +96,7 @@
 
     <distributionManagement>
         <repository>
-            <id>github-ysdaeth</id>
+            <id>github</id>
             <name>GitHub Ysdaeth Apache Maven Packages</name>
             <url>https://maven.pkg.github.com/Ysdaeth/jwt-java</url>
         </repository>
