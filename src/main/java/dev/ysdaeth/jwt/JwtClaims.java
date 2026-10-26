@@ -66,10 +66,17 @@ final class JwtClaims {
         }
     }
 
+    /**
+     * Locks claims to make it immutable
+     */
     void lock(){
         isLocked = true;
     }
 
+    /**
+     * Clear all claims. Throws exception when claims are locked.
+     * @throws JwtStateException when claims are locked
+     */
     void clear() throws JwtStateException {
         if(isLocked) throw new JwtStateException(
                 "Locked claims cannot be changed");
@@ -107,23 +114,20 @@ final class JwtClaims {
             Object srcObj = src.get(key);
             Object targetObj = target.get(key);
 
-            boolean equals = areEqualValues(srcObj, targetObj);
+            boolean equals = Objects.equals(srcObj, targetObj);
             if(!equals) return false;
         }
         return true;
     }
 
-    private static boolean areEqualValues(Object srcObj, Object targetObj) {
-        if (srcObj == targetObj) return true;
-        if (srcObj == null || targetObj == null) return false;
-
-        if (srcObj instanceof Number n1 && targetObj instanceof Number n2) {
-            return Double.compare(n1.doubleValue(), n2.doubleValue()) == 0;
-        }
-
-        return srcObj.equals(targetObj);
-    }
-
+    /**
+     * Creates copy of nested Maps and Collections as a key value map, where key is Claim name.
+     * Makes Map of claims immutable Collections and Maps, but mutable objects are not
+     * prevented from changing state, so it is recommended to use records or immutable classes.
+     * If argument is Collection or Map, this method will be called recursively.
+     * @param value Map, Collection or immutable object
+     * @return this object, or immutable Collection or Map
+     */
     private static Object defensiveCopy(Object value){
         if(value instanceof Map<?,?> map){
             Map<Object,Object> copy = new HashMap<>();

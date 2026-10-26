@@ -24,8 +24,7 @@ public class Jwt {
     }
 
     /**
-     * Creates object of the JSON Web Token without signature. After constructing,
-     * a method {@link this#sign(Key, JwtAlgorithm)} creates Signature field and returns compact JWT.
+     * Creates object of the JSON Web Token without signature.
      * @param header JWT Header
      * @param payload JWT Payload
      */
@@ -150,6 +149,12 @@ public class Jwt {
         return jwtDeserialized;
     }
 
+    /**
+     * Extracts algorithm from header and maps it to {@link JwtAlgorithm}
+     * @param header header with algorithm
+     * @return algorithm
+     * @throws JwtUnsupportedException when algorithm is not supported
+     */
     private static JwtAlgorithm extractAlgorithm(JwtHeader header) throws JwtUnsupportedException{
         String algorithmName = header.getAlgorithm();
         try{
@@ -159,12 +164,20 @@ public class Jwt {
         }
     }
 
+    /**
+     * If jwt objects have signature it compares signatures, otherwise it compares claims
+     * from header and paylaod.
+     * @param obj object to compare.
+     * @return true if equals, otherwise false
+     */
     @Override
     public boolean equals(Object obj) {
         if(obj instanceof Jwt other){
+            if(this.signature != null){
+                return this.signature.equals(other.signature);
+            }
             return header.equals(other.header)
-                    && payload.equals(other.payload) &&
-                    signature.equals(other.signature);
+                    && payload.equals(other.payload);
         }
         return false;
     }

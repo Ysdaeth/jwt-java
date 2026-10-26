@@ -8,6 +8,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
 
+/**
+ * Base functionality to provide JWT signing and verification logic, while
+ * actual algorithm implementation depends on child class
+ */
 abstract class JwtSigner {
 
     private static final JwtClaimsSerializer serializer = new JwtClaimsSerializer();
@@ -142,6 +146,12 @@ abstract class JwtSigner {
         return new JwtHeader(headerClaims);
     }
 
+    /**
+     * Splits JWT and return base64 of header, payload and signature in exactly this order as array of strings
+     * @param jwtBase64 JSON Web Token
+     * @return base64 header, payload and signature
+     * @throws JwtMalformedException when token has missing parts
+     */
     private static String[] splitTokenBase64(String jwtBase64) throws JwtMalformedException {
         if(jwtBase64 == null) throw new JwtMalformedException("JSON Web Token is null");
         String[] parts = jwtBase64.split("\\.");
