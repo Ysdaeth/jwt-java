@@ -1,8 +1,41 @@
 # How to use
 Library is really simple to use, methods names are created to be self-explanatory, 
-so this tutorial will not be that much detailed.
+so this tutorial will not be that much detailed. it supports nested Collections and Maps.
 
-First lets add a dependency.  
+> [!WARNING]
+> Collections and Maps are immutable but state of mutable objects can be changed, so it is recommended
+to use `record` or `immutable class`
+
+- [How to install package](#how-to-install-package)
+- [Claims](#create-claims)
+  - [Header](#create-jwt-header)
+  - [Payload](#create-jwt-payload)
+- [Create token](#create-token)
+- [Parse token](#parse-token)
+- [Parse token with KeyLocator](#parse-token-with-keylocator)
+
+
+## How to install package
+Package is available to download with GitHub Packages,  **NOT** with **Maven Repository**, but will be soon.  
+There are 2 ways to install it with maven.
+
+### Download with GitHub packages
+Add to `.m2/settings.xml`:
+```xml
+<repository>
+    <id>gh-ys-jwt-java</id> <!-- Or any other id you like-->
+    <url>https://maven.pkg.github.com/Ysdaeth/jwt-java</url>
+</repository>
+```
+
+### Or clone repository and install locally
+```shell
+git clone https://github.com/Ysdaeth/jwt-java.git
+cd jwt-java
+sudo mvn clean install
+```
+
+### Then add dependency to project
 ```xml
 <dependency>
     <groupId>dev.ysdaeth.jwt</groupId>
@@ -11,38 +44,45 @@ First lets add a dependency.
 </dependency>
 ```
 
-## JSON Web Token
+---
 
-### Create Jwt instance
-You can create instance. Constructor requires Header and Payload
+## Create claims
+
+### Create JWT Header
+Header contains most common fields, but you can add own custom attribute. 
+When signing JWT header algorithm is set automatically, so you don't need to specify it.
+Header claims are immutable **ONLY** when signed.
 
 ```java
 JwtHeader header = new JwtHeader();
 header.setKeyId("my-key");
 header.add("key","value");
-
-JwtPayload payload = new JwtPayload();
-payload.setIssuer("me");
-payload.setSubject("you");
-payload.setExpiresAt(expiresAt);
-payload.addBytes("bytes", new byte[]{1,2,3});
-payload.add("iLikeCats", true);
-
-Jwt jwt = new Jwt(header, payload);
 ```
 
-### Create signed token
-Once signature is created, it cannot be created once again from the same instance. 
+### Create JWT Payload
+Payload claims are immutable **ONLY** when signed.
+
+```java
+JwtPayload payload = new JwtPayload();
+payload.setSubject("you");
+payload.setExpiresAt(expiresAt);
+payload.add("iLikeCats",true);
+```
+
+## Create Token
+First Jwt instance must be created. It contains JwtHeader and JwtPayload objects.
+Once signature is created, it cannot be created once again from the same instance.
 Furthermore, changing header or payload claims will throw JwtStateException.
 
 ```java
+Jwt jwt = new Jwt(header, payload);
 JwtAlgorithm algorithm = JwtAlgorithm.HS256;
-Key signKey = ...;
+Key signKey; // generate key
 String token = jwt.sign(signKey, algorithm);
 ```
 
-### Parsing JWT with key
-When key does not match the signature, the SecurityException is thrown, and instance is not created. 
+## Parse token
+When key does not match the signature, the SecurityException is thrown. 
 Also, it is not possible to change claims of the parsed Jwt instance, doing so will throw an exception.
 
 ```java
@@ -57,7 +97,7 @@ JwtHeader header = jwt.getHeader();
 String subject = payload.getSubject();
 ```
 
-### Parsing JWT with KeyLocator
+## Parse token with KeyLocator
 KeyLocator is a **functional interface**, it is used to supply the unsafe header (not verified) to access required fields 
 like key id or public key location. 
 
@@ -72,83 +112,11 @@ class MyKeyLocator implements KeyLocator {
     }
 }
 ```
+
 Now lets use our KeyLocator to verify and parse Jwt.
+
 ```java
+MyKeyLocator myKeyLocator = new MyKeyLocator();
 String jsonWebToken = ...;
-Jwt jwt = Jwt.parse(jsonWebToken, new MyKeyLocator()); //or lambda expression
-```
-
-## Working Example
-Below is full working example, that includes Signing and parsing JSON Web Token with and without KeyLocator
-
-```java
-import dev.ysdaeth.jwt.*;
-import dev.ysdaeth.jwt.exception.JwtStateException;
-
-import javax.crypto.spec.SecretKeySpec;
-import java.security.Key;
-import java.security.SecureRandom;
-import java.time.Instant;
-
-public class Example {
-
-    void runExample() throws Exception {
-        Key key = MyKeyLocator.key;
-
-        JwtHeader header = new JwtHeader();
-        header.setKeyId("keyId");
-        header.add("customHeader", "value");
-
-        JwtPayload payload = new JwtPayload();
-        payload.setExpiresAt(Instant.now().plusSeconds(300));
-        payload.setIssuer("Ysdaeth");
-        payload.setSubject("You");
-        payload.add("role", "DEVELOPER");
-        payload.add("bans", 0);
-        payload.add("isBanned", false);
-
-        Jwt jwt = new Jwt(header, payload);
-        String jsonWebToken = jwt.sign(key, JwtAlgorithm.HS256);
-
-        System.out.println("=== TOKEN ===");
-        System.out.println(jsonWebToken);
-        System.out.println("=== TOKEN ===");
-
-        try {
-            jwt.getPayload().add("role", "ADMIN");
-        } catch (JwtStateException e) {
-            System.out.println(
-                    "You must not modify jwt claims, when it's already signed. " + e.getMessage());
-        }
-
-        Jwt parsedJwt = Jwt.parse(jsonWebToken, key);
-        JwtPayload parsedPayload = parsedJwt.getPayload();
-        String subject = parsedPayload.getSubject();
-        System.out.println("Hello, " + subject);
-
-        Jwt parsedWithKeyLocator = Jwt.parse(jsonWebToken, new MyKeyLocator());
-        String subject2 = parsedWithKeyLocator.getPayload().getSubject();
-
-        System.out.println("Hello, " + subject2 + ". Key locator works!");
-    }
-
-    private static class MyKeyLocator implements KeyLocator {
-        public static Key key = generateKey();
-
-        @Override
-        public Key findKey(JwtHeader unsafeHeader) {
-            String keyId = unsafeHeader.getKeyId();
-            if ("keyId".equals(keyId)) return key;
-            return null;
-        }
-
-        static Key generateKey() {
-            byte[] keyBytes = new byte[32];
-            new SecureRandom().nextBytes(keyBytes);
-            return new SecretKeySpec(keyBytes, "HmacSHA256");
-        }
-
-    }
-}
-
+Jwt jwt = Jwt.parse(jsonWebToken, myKeyLocator); //or lambda expression
 ```
