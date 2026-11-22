@@ -111,8 +111,7 @@ abstract class JwtSigner {
 
         byte[] signatureBytes = JwtBytesPolicy.bytesFromBase64(sections[2]);
         JwtSignature signature = new JwtSignature(signatureBytes);
-        boolean verified = verifyMessage(mergedBytes, signature, key);
-        if(!verified) throw new JwtSignatureException("JSON Web Token signature does not match");
+        verifyMessage(mergedBytes, signature, key);
         return signature;
     }
 
@@ -124,13 +123,15 @@ abstract class JwtSigner {
     }
 
     /**
-     * Tests if message matches the signature
+     * Tests if message matches the signature, otherwise throws
      * @param message message to verify
      * @param signature signature to test
      * @param key key to create signature from message
-     * @return true if message is verified, otherwise false
+     * @throws JwtSignatureException when signature is not valid, or cannot be verified.
+     * @throws IllegalArgumentException when argument is missing, is invalid, or logic does not match
      */
-    protected abstract boolean verifyMessage(byte[] message, JwtSignature signature, Key key);
+    protected abstract void verifyMessage(byte[] message, JwtSignature signature, Key key)
+            throws JwtSignatureException;
 
     /**
      * Returns not verified header, or throws Exception when malformed
