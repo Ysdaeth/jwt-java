@@ -10,7 +10,7 @@ to use `record` or `immutable class`
 - [Claims](#create-claims)
   - [Header](#create-jwt-header)
   - [Payload](#create-jwt-payload)
-- [Create token](#create-token)
+- [Create token](#sign-token)
 - [Parse token](#parse-token)
 - [Parse token with KeyLocator](#parse-token-with-keylocator)
 
@@ -66,19 +66,34 @@ Payload claims are immutable **ONLY** when signed.
 JwtPayload payload = new JwtPayload();
 payload.setSubject("you");
 payload.setExpiresAt(expiresAt);
-payload.add("iLikeCats",true);
+payload.add("bool",true);
+payload.add("list", List.of("one","two","three"));
 ```
 
-## Create Token
+## Sign Token
 First Jwt instance must be created. It contains JwtHeader and JwtPayload objects.
 Once signature is created, it cannot be created once again from the same instance.
 Furthermore, changing header or payload claims will throw JwtStateException.
 
+### Sign and specify algorithm
 ```java
 Jwt jwt = new Jwt(header, payload);
 JwtAlgorithm algorithm = JwtAlgorithm.HS256;
 Key signKey; // generate key
 String token = jwt.sign(signKey, algorithm);
+```
+### Sign and resolve algorithm from the key
+Alternatively, you can let the library determine the JWT signing algorithm based on the key's algorithm name (Key.getAlgorithm()).
+
+The resolution depends on how much information the key provides:
+
+- `HMAC keys`: The algorithm can be determined directly from the key algorithm name.
+For example, HmacSHA384 resolves to HS384, because it specifies a hash function.
+
+- `RSA keys`: The key algorithm name is simply RSA, which does not specify a hash function. 
+Therefore, the library uses RS256 as the default algorithm for RSA keys.
+```java
+String token = jwt.sign(signKey);
 ```
 
 ## Parse token
