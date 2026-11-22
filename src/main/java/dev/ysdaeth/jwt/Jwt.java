@@ -34,8 +34,29 @@ public class Jwt {
     }
 
     /**
-     * Creates {@link JwtSignature} for that instance as a field value, then
-     * returns string which is full compact (serialized) JSON Web Token.
+     * Creates {@link JwtSignature} for that instance, then
+     * returns string which is serialized JSON Web Token.
+     * Algorithm is selected based on key algorithm.
+     * If key algorithm name has insufficient information,
+     * then default JwtAlgorithm will be selected for that key.
+     * Example:
+     * <blockquote>
+     *      Key.getAlgorithm() ->"HmacSHA384" -> JwtAlgorithm = HS384
+     *      Key.getAlgorithm() -> "RSA" -> JwtAlgorithm = RS256 // RS256 is default for all RSA keys
+     * </blockquote>
+     * @param signKey key used to sign the token
+     * @return JSON Web Token as a string base64 encoded with separators '.'
+     */
+    public String sign(Key signKey) throws JwtStateException {
+        if(this.signature != null) throw new JwtStateException("Jwt is already signed");
+        JwtAlgorithm algorithm = KeyAlgorithmResolver.resolveAlgorithm(signKey);
+        return sign(signKey, algorithm);
+    }
+
+    /**
+     * Creates {@link JwtSignature} for that instance, then
+     * returns string which is serialized JSON Web Token.
+     * Algorithm is selected based on JwtAlgorithm
      * @param signKey key used to sign the token
      * @param jwtAlgorithm type of jwt like. RS256, HS256, etc.
      * @return JSON Web Token as a string base64 encoded with separators '.'
@@ -166,7 +187,7 @@ public class Jwt {
 
     /**
      * If jwt objects have signature it compares signatures, otherwise it compares claims
-     * from header and paylaod.
+     * from header and payload.
      * @param obj object to compare.
      * @return true if equals, otherwise false
      */

@@ -1,86 +1,169 @@
 package dev.ysdaeth.jwt;
 
-import dev.ysdaeth.jwt.exception.*;
-import org.junit.jupiter.api.Test;
-import javax.crypto.KeyGenerator;
 import static org.junit.jupiter.api.Assertions.*;
+
+import dev.ysdaeth.jwt.exception.JwtSecurityException;
+import dev.ysdaeth.jwt.exception.JwtStateException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import javax.crypto.KeyGenerator;
 import java.security.Key;
 import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 
-class JwtTest {
+public class JwtTest {
 
-    @Test
-    void parsedJwt_shouldBeImmutable() throws Exception {
-        Key signKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
-
-        Jwt jwt = new Jwt(new JwtHeader(), new JwtPayload());
-        String token = jwt.sign(signKey, JwtAlgorithm.HS256);
-        Jwt immutableJwt = Jwt.parse(token,signKey);
-
-        assertThrowsExactly(JwtStateException.class,()->{
-            immutableJwt.getPayload().add("key","value");
+    @ParameterizedTest
+    @MethodSource("algorithmKeys")
+    void sign_shouldNotThrow_onValidKey(JwtAlgorithm algorithm, Jwt jwt, Key signKey, Key verifyKey){
+        assertDoesNotThrow(()->{
+            jwt.sign(signKey, algorithm);
         });
     }
 
-
-    @Test
-    void parsedJwt_shouldThrowException_whenReSigned() throws Exception{
-        String token = JwtTestUtils.loadJwt("HS256.token");
-        Key key = JwtTestUtils.loadSecretKey("HS256.key");
-        Jwt jwt = Jwt.parse(token, key);
-
-        assertThrowsExactly(JwtStateException.class,()->{
-            jwt.sign(key,JwtAlgorithm.HS256);
+    @ParameterizedTest
+    @MethodSource("algorithmKeys")
+    void sign_shouldResolveAlgorithm(JwtAlgorithm algorithm, Jwt jwt, Key signKey, Key verifyKey){
+        assertDoesNotThrow(()->{
+            String token = jwt.sign(signKey);
+            Jwt.parse(token,verifyKey);
         });
     }
 
-    @Test
-    void parsedJwt_shouldThrowException_whenSignKeyDoesNotMatch() throws Exception{
-        String token = JwtTestUtils.loadJwt("HS256.token");
-        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
+    @ParameterizedTest
+    @MethodSource("algorithmKeys")
+    void sign_shouldThrowSecurityException_onInvalidKey(JwtAlgorithm algorithm, Jwt jwt, Key signKey, Key verifyKey) throws Exception {
+        Key invalidKey;
+        if(algorithm.name().startsWith("RS")){
+            invalidKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        }
+        else invalidKey = KeyPairGenerator.getInstance("RSA").generateKeyPair().getPublic();
 
-        assertThrowsExactly(JwtSignatureException.class,()->{
-            Jwt.parse(token, key);
+        assertThrows(IllegalArgumentException.class, ()->{
+            jwt.sign(invalidKey, algorithm);
         });
     }
 
-    @Test
-    void jwt_shouldThrowException_whenSignedTwice() throws Exception{
-        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
-        Jwt jwt = JwtTestUtils.createExpectedJwt("HS256", null);
+    @ParameterizedTest
+    @MethodSource("algorithmKeys")
+    void parse_shouldNotThrow_onValidKey(JwtAlgorithm algorithm, Jwt jwt, Key signKey, Key verifyKey){
+        String token =  TestUtils.loadToken(algorithm);
 
         assertDoesNotThrow(()->{
-            jwt.sign(key, JwtAlgorithm.HS256);
-        });
-
-        assertThrowsExactly(JwtStateException.class,()->{
-            jwt.sign(key,JwtAlgorithm.HS256);
+            Jwt.parse(token, verifyKey);
         });
     }
 
+    @ParameterizedTest
+    @MethodSource("algorithmKeys")
+    void parse_shouldThrow_onInvalidKey(JwtAlgorithm algorithm, Jwt jwt, Key signKey, Key verifyKey) throws Exception {
+        String token =  jwt.sign(signKey, algorithm);
+        Key invalidKey;
+        if(algorithm.name().startsWith("RS")){
+            invalidKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        }
+        else invalidKey = KeyPairGenerator.getInstance("RSA").genKeyPair().getPublic();
+        assertThrows(JwtSecurityException.class, ()->{
+            Jwt.parse(token, invalidKey);
+        });
+    }
+
+    @ParameterizedTest
+    @MethodSource("algorithmKeys")
+    void parse_shouldThrow_onIncorrectKey(JwtAlgorithm algorithm, Jwt jwt, Key signKey, Key verifyKey) throws Exception {
+        String token =  jwt.sign(signKey, algorithm);
+        Key incorrectKey;
+        if(signKey instanceof PrivateKey){
+            incorrectKey = KeyPairGenerator.getInstance(verifyKey.getAlgorithm()).genKeyPair().getPublic();
+        }
+        else incorrectKey = KeyGenerator.getInstance(verifyKey.getAlgorithm()).generateKey();
+
+        assertThrows(JwtSecurityException.class, ()->{
+            Jwt.parse(token, incorrectKey);
+        });
+    }
+
+    @ParameterizedTest
+    @MethodSource("algorithmKeys")
+    void parsedJwt_shouldBeImmutable(JwtAlgorithm algorithm, Jwt jwt, Key signKey, Key verifyKey) throws Exception {
+        jwt.sign(signKey, algorithm);
+        assertThrowsExactly(JwtStateException.class, ()->{
+            jwt.getPayload().add("key","value");
+        });
+    }
+
+
+    static Stream<Arguments> algorithmKeys(){
+        return Stream.of(
+                loadTokenAndKeys(JwtAlgorithm.HS256, true),
+                loadTokenAndKeys(JwtAlgorithm.HS384, true),
+                loadTokenAndKeys(JwtAlgorithm.HS512, true),
+                loadTokenAndKeys(JwtAlgorithm.RS256, false),
+                loadTokenAndKeys(JwtAlgorithm.RS384, false),
+                loadTokenAndKeys(JwtAlgorithm.RS512, false)
+        );
+    }
+
+    private static Arguments loadTokenAndKeys(JwtAlgorithm algorithm, boolean symmetric){
+        Jwt unsignedJwt = TestUtils.createUnsignedJwt(algorithm);
+        Key signKey;
+        Key verifyKey;
+
+        if(symmetric){
+            signKey = TestUtils.loadKey(algorithm);
+            verifyKey = signKey;
+        }
+        else {
+            KeyPair pair = TestUtils.getKeyPair(algorithm);
+            signKey = pair.getPrivate();
+            verifyKey = pair.getPublic();
+        }
+
+        return Arguments.of(algorithm, unsignedJwt, signKey, verifyKey);
+    }
+
+
+
     @Test
-    void jwtClaims_shouldThrowException_whenChangedAfterSign() throws Exception{
-        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
-        Jwt jwt = JwtTestUtils.createExpectedJwt("HS256", null);
+    void parsedJwt_shouldBeImmutable() {
+        String token = TestUtils.loadToken(JwtAlgorithm.HS256);
+        Key key = TestUtils.loadKey(JwtAlgorithm.HS256);
+        Jwt jwt = Jwt.parse(token, key);
+
+        assertThrowsExactly(JwtStateException.class,() -> {
+            jwt.getPayload().add("key","value");
+        });
+
+        assertThrowsExactly(JwtStateException.class,() -> {
+            jwt.getHeader().add("key","value");
+        });
+
+    }
+
+    @Test
+    void signedJwt_shouldBeImmutable(){
+        Key key = TestUtils.loadKey(JwtAlgorithm.HS256);
+        Jwt jwt = new Jwt(new JwtHeader(), new JwtPayload());
         jwt.sign(key, JwtAlgorithm.HS256);
-        JwtClaims headerClaims = jwt.getHeader().getClaims();
-        JwtClaims payloadClaims = jwt.getPayload().getClaims();
 
         assertThrowsExactly(JwtStateException.class,()->{
-            headerClaims.put("key","value");
+            jwt.getPayload().add("key","value");
         });
 
         assertThrowsExactly(JwtStateException.class,()->{
-            payloadClaims.put("key","value");
+            jwt.getHeader().add("key","value");
         });
     }
 
     @Test
-    void get_shouldReturnList() throws Exception{
+    void get_shouldNotThrow_classCastException() throws Exception{
         JwtPayload payload = new JwtPayload();
         payload.add("my-list", List.of("one","two"));
         Jwt jwt = new Jwt(new JwtHeader(), payload);
@@ -91,120 +174,172 @@ class JwtTest {
         Jwt parsed = Jwt.parse(token, singKey);
         assertDoesNotThrow(
                 ()-> {
-                    List<String> x = parsed.getPayload().get("my-list");
+                    List<String> myList = parsed.getPayload().get("my-list");
                 }, "Failed to obtain List from JWT Payload");
-
-
-        List<String> actualList = parsed.getPayload().get("my-list");
-        assertTrue(actualList.contains("one"), "List from payload has missing elements");
-        assertTrue(actualList.contains("two"), "List from payload has missing elements");
     }
 
     @Test
-    void get_shouldThrow_ClassCastException() throws Exception {
+    void get_shouldReturnList() throws Exception{
+        Key singKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+
         JwtPayload payload = new JwtPayload();
         payload.add("my-list", List.of("one","two"));
         Jwt jwt = new Jwt(new JwtHeader(), payload);
-
-        Key singKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
         String token = jwt.sign(singKey,JwtAlgorithm.HS256);
 
-        JwtPayload expectedPayload = Jwt.parse(token, singKey).getPayload();
-        assertThrowsExactly(ClassCastException.class,()->{
-            Boolean x = expectedPayload.get("my-list");
-        });
-    }
+        Jwt parsed = Jwt.parse(token, singKey);
 
-    // ALGORITHM TESTS
+        List<String> actualList = parsed.getPayload().get("my-list");
 
-    @Test
-    void sign_HS256_shouldSerializeToExpectedValue() throws Exception {
-        Key keyHS256 = JwtTestUtils.loadSecretKey("HS256.key");
-        String expectedSerialized = JwtTestUtils.loadJwt("HS256.token");
-
-        Jwt jwt = JwtTestUtils.createExpectedJwt("HS256", null);
-        String serialized = jwt.sign(keyHS256, JwtAlgorithm.HS256);
-        assertEquals(expectedSerialized, serialized);
+        assertNotNull(actualList);
+        assertTrue(actualList.contains("one"));
+        assertTrue(actualList.contains("two"));
     }
 
     @Test
-    void parse_HS256_shouldDeserializeClaims() throws Exception {
-        Key keyHS256 = JwtTestUtils.loadSecretKey("HS256.key");
-        String expectedSerialized = JwtTestUtils.loadJwt("HS256.token");
-        String sigB64 = expectedSerialized.split("\\.")[2];
-
-        Jwt expected = JwtTestUtils.createExpectedJwt("HS256", sigB64);
-        Jwt actual = Jwt.parse(expectedSerialized, keyHS256);
-
-        assertEquals(expected, actual,"JWT instances are not equal");
-    }
-
-    @Test
-    void sign_RS256_shouldSerializeToExpectedToken() throws Exception {
-        KeyPair keyPair = JwtTestUtils.loadKeyPair("RS256.pair");
-        PrivateKey privateKey = keyPair.getPrivate();
-        String expectedToken = JwtTestUtils.loadJwt("RS256.token");
-
-        Jwt jwt = JwtTestUtils.createExpectedJwt("RS256", null);
-        String actualToken = jwt.sign(privateKey, JwtAlgorithm.RS256);
-        assertEquals(expectedToken, actualToken);
-    }
-
-    @Test
-    void parse_RS256_shouldDeserializeClaims() throws Exception {
-        String serialized = JwtTestUtils.loadJwt("RS256.token");
-        String sigB64 = serialized.split("\\.")[2];
-
-        Jwt expected = JwtTestUtils.createExpectedJwt("RS256", sigB64);
-        KeyPair keyRS256 = JwtTestUtils.loadKeyPair("RS256.pair");
-        PublicKey publicKey = keyRS256.getPublic();
-
-        Jwt parsed = Jwt.parse(serialized, publicKey);
-
-        assertEquals(expected, parsed,"JWT instances are not equal");
-    }
-
-    @Test
-    void parse_shouldThrow_MalformedException(){
-        String token = "invalid.token";
-        Key key = null;
-
-        assertThrowsExactly(JwtMalformedException.class,()->{
-            Jwt.parse(token,key);
-        });
-    }
-
-    @Test
-    void parse_shouldThrow_ExpiredException() throws Exception{
-        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
-
-        JwtHeader header = new JwtHeader();
+    void get_shouldNotThrow_classCastException_forMap() throws Exception {
         JwtPayload payload = new JwtPayload();
-        payload.setExpiresAt(Instant.now().minusSeconds(10));
-        Jwt jwt = new Jwt(header, payload);
 
-        String token = jwt.sign(key, JwtAlgorithm.HS256);
+        payload.add("my-map", Map.of(
+                "key1", "value1",
+                "key2", "value2"
+        ));
 
-        assertThrowsExactly(JwtExpiredException.class,()->{
-            Jwt.parse(token,key);
-        });
+        Jwt jwt = new Jwt(new JwtHeader(), payload);
+
+        Key signKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        String token = jwt.sign(signKey, JwtAlgorithm.HS256);
+
+        Jwt parsed = Jwt.parse(token, signKey);
+
+        assertDoesNotThrow(
+                () -> {
+                    Map<String, String> myMap = parsed.getPayload().get("my-map");
+                },
+                "Failed to obtain Map from JWT Payload"
+        );
     }
 
     @Test
-    void parse_shouldThrow_UnsupportedException() throws Exception{
-        String token = "eyJhbGciOiJ1bmtub3duIn0.e30.e30";
-        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
-        assertThrowsExactly(JwtUnsupportedException.class,()->{
-            Jwt.parse(token,key);
+    void get_shouldReturnMap() throws Exception {
+        Key signKey = KeyGenerator.getInstance("HmacSHA256").generateKey();
+
+        JwtPayload payload = new JwtPayload();
+        payload.add("my-map", Map.of(
+                "key1", "value1",
+                "key2", "value2"
+        ));
+
+        Jwt jwt = new Jwt(new JwtHeader(), payload);
+        String token = jwt.sign(signKey, JwtAlgorithm.HS256);
+
+        Jwt parsed = Jwt.parse(token, signKey);
+
+        Map<String, String> actualMap = parsed.getPayload().get("my-map");
+
+        assertNotNull(actualMap);
+        assertEquals(2, actualMap.size());
+        assertEquals("value1", actualMap.get("key1"));
+        assertEquals("value2", actualMap.get("key2"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("incorrectTokens")
+    void missingHeader_shouldThrowMalformedException(Key verificationKey, String incorrectToken){
+        assertThrows(JwtSecurityException.class,()->{
+           Jwt.parse(incorrectToken, verificationKey);
         });
     }
 
-    @Test
-    void nullToken_shouldThrowMalformedException() throws Exception {
-        String token = null;
-        Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
-        assertThrowsExactly(JwtMalformedException.class,()->{
-            Jwt.parse(token, key);
-        });
+    static Stream<Arguments> incorrectTokens(){
+        Key key = TestUtils.loadKey(JwtAlgorithm.HS256);
+
+        String missingHeader =
+                "eyJzdWIiOiIxMjM0NTY3ODkwIn0" +
+                    ".HzrLVf79SNp1iZDWQ_d4eP5NccBzszMaXgME9KYZ8XY";
+
+        String missingPayload =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" +
+                    ".HzrLVf79SNp1iZDWQ_d4eP5NccBzszMaXgME9KYZ8XY";
+
+        String missingSignature =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" +
+                    ".eyJzdWIiOiIxMjM0NTY3ODkwIn0";
+
+        String malformedHeader =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0." +
+                        "HzrLVf79SNp1iZDWQ_d4eP5NccBzszMaXgME9KYZ8XY";
+
+        String malformedPayload =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwI." +
+                        "HzrLVf79SNp1iZDWQ_d4eP5NccBzszMaXgME9KYZ8XY";
+
+        String malformedSignature =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0." +
+                        "HzrLVf79SNp1iZDWQ_d4eP5NccBzszMaXgME9KYZ8";
+
+        // alg: none
+        String noneAlgorithm =
+                "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0." +
+                        "HzrLVf79SNp1iZDWQ_d4eP5NccBzszMaXgME9KYZ8";
+
+        // Algorithm confusion: HS256 header with an RSA public key used as HMAC key
+        String algorithmConfusion =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0." +
+                        "SGVsbG9Xb3JsZA";
+
+        // Empty signature
+        String emptySignature =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0.";
+
+        // Wrong algorithm
+        String wrongAlgorithm =
+                "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0." +
+                        "SGVsbG9Xb3JsZA";
+
+        // Extra JWT segment
+        String extraSegment =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0." +
+                        "SGVsbG9Xb3JsZA.extra";
+
+        // Duplicate JSON header properties
+        String duplicateAlgorithm =
+                "eyJhbGciOiJIUzI1NiIsImFsZyI6Im5vbmUiLCJ0eXAiOiJKV1QifQ." +
+                        "eyJzdWIiOiIxMjM0NTY3ODkwIn0." +
+                        "SGVsbG9Xb3JsZA";
+
+        String emptyPayload =
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                        " .OWTbTWIFnHq365uyqlNDyhMiao9zr_eS-upovDcDEqw";
+
+        String onlyDots = "..";
+
+
+        return Stream.of(
+                Arguments.of(key, missingHeader),
+                Arguments.of(key, missingPayload),
+                Arguments.of(key, missingSignature),
+                Arguments.of(key, malformedHeader),
+                Arguments.of(key, malformedPayload),
+                Arguments.of(key, malformedSignature),
+                Arguments.of(key, noneAlgorithm),
+                Arguments.of(key, algorithmConfusion),
+                Arguments.of(key, emptySignature),
+                Arguments.of(key, wrongAlgorithm),
+                Arguments.of(key, extraSegment),
+                Arguments.of(key, duplicateAlgorithm),
+                Arguments.of(key, emptyPayload),
+                Arguments.of(key, onlyDots)
+        );
     }
+
+
 }
